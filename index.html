@@ -8,212 +8,137 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         :root { 
-            --bleu: #007bff; 
-            --blanc: #f8f9fa; 
-            --rouge: #ff4757; 
-            --dark: #2c3e50; 
-            --green: #2ecc71; 
-            --orange: #f39c12; 
+            --bleu: #007bff; --blanc: #f8f9fa; --rouge: #ff4757; 
+            --dark: #2c3e50; --green: #2ecc71; --orange: #f39c12; 
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #f0f2f5; padding: 20px; }
-        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; }
+        body { background: #f0f2f5; padding: 15px; scroll-behavior: smooth; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         
-        .header { background: var(--dark); color: white; padding: 20px 25px; display: flex; align-items: center; gap: 20px; position: relative; }
-        .car-icon { width: 55px; height: 55px; fill: #3498db; background: white; padding: 8px; border-radius: 50%; }
-        
-        /* Message de rappel stockage */
-        .storage-warning { 
-            position: absolute; top: 5px; right: 25px; 
-            font-size: 0.65rem; color: #bdc3c7; font-style: italic; 
-        }
+        /* HEADER FIXED */
+        .header { background: var(--dark); color: white; padding: 15px 25px; display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 1000; }
+        .car-icon { width: 45px; height: 45px; fill: #3498db; background: white; padding: 8px; border-radius: 50%; }
+        .storage-warning { position: absolute; top: 2px; right: 25px; font-size: 0.6rem; color: #bdc3c7; }
 
-        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; padding: 20px; background: #f8f9fa; border-bottom: 1px solid #eee; }
-        .card { padding: 15px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; }
+        .card { padding: 12px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; transition: 0.3s; }
         .card.bleu { background: var(--bleu); }
         .card.blanc { background: #bdc3c7; color: #2c3e50; }
         .card.rouge { background: var(--rouge); }
         .card.total { background: #8e44ad; }
-        
-        .card .val { font-size: 1.4rem; font-weight: bold; }
-        .card .count { font-size: 0.85rem; opacity: 0.9; margin-top: 5px; display: block; }
-        
-        .card-tarifs { 
-            position: absolute; right: 10px; top: 15px; 
-            text-align: right; font-size: 0.75rem; 
-            background: rgba(255,255,255,0.2); padding: 5px; border-radius: 5px; line-height: 1.2;
-        }
-        .card.blanc .card-tarifs { background: rgba(0,0,0,0.05); }
+        .card .val { font-size: 1.3rem; font-weight: bold; }
+        .card-tarifs { position: absolute; right: 10px; top: 10px; text-align: right; font-size: 0.7rem; background: rgba(255,255,255,0.2); padding: 4px; border-radius: 4px; }
+        .filter-indicator { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; background: #f1c40f; color: #000; padding: 2px 5px; border-radius: 3px; display: none; margin-bottom: 5px; width: fit-content; }
 
-        .tabs { display: flex; background: #eee; }
-        .tab { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: bold; color: #666; }
+        .tabs { display: flex; background: #eee; position: sticky; top: 75px; z-index: 999; }
+        .tab { padding: 12px 20px; cursor: pointer; border: none; background: none; font-weight: bold; color: #666; }
         .tab.active { background: white; color: var(--dark); border-bottom: 3px solid var(--dark); }
-        .tab-content { display: none; padding: 20px; }
+        
+        .tab-content { display: none; padding: 15px; }
         .tab-content.active { display: block; }
 
-        .box { background: #ffffff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .box { background: #ffffff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; }
+        #form-container { background: #fff9db; border: 2px solid #f1c40f; }
+
+        /* TABLEAU AVEC SCROLL INTERNE */
+        .table-wrapper { max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 10; border-bottom: 2px solid #dee2e6; }
+        th, td { padding: 10px; text-align: left; font-size: 0.85rem; border-bottom: 1px solid #eee; }
         
-        #form-container { 
-            background: #fff9db; 
-            border: 2px solid #f1c40f; 
-            box-shadow: 0 5px 15px rgba(241, 196, 15, 0.2);
+        .btn-action { border:none; background:none; cursor:pointer; font-weight:bold; padding: 5px 10px; border-radius: 4px; color: #ff4757; }
+        .btn-edit { color: var(--orange); }
+
+        /* BOUTON RETOUR HAUT */
+        #scrollTopBtn {
+            position: fixed; bottom: 20px; right: 20px; z-index: 99;
+            background: var(--dark); color: white; border: none; padding: 12px;
+            border-radius: 50%; cursor: pointer; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; align-items: flex-end; }
-        label { font-size: 0.75rem; font-weight: bold; color: #444; margin-bottom: 3px; display: block; }
-        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; font-size: 0.85rem; }
-        
-        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.85rem; color: white; transition: 0.2s; }
-        .btn:hover { opacity: 0.8; transform: translateY(-1px); }
-        .btn-add { background: var(--dark); }
-        .btn-csv { background: var(--green); }
-        .btn-save { background: #34495e; }
-        .btn-cancel { background: #95a5a6; }
-
-        .badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            color: white;
-            display: inline-block;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-        }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; align-items: flex-end; }
+        input, select { padding: 7px; border: 1px solid #ccc; border-radius: 4px; width: 100%; font-size: 0.85rem; }
+        .btn { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
+        .badge { padding: 3px 10px; border-radius: 15px; font-weight: 800; font-size: 0.7rem; color: white; }
         .badge-bleu { background: var(--bleu); }
         .badge-blanc { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; }
         .badge-rouge { background: var(--rouge); }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #f8f9fa; padding: 10px; text-align: left; border-bottom: 2px solid #dee2e6; font-size: 0.8rem; }
-        td { padding: 12px 8px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
-        
-        .chart-container { height: 450px; margin-bottom: 30px; background: #fff; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
-        .hidden { display: none; }
-        #tempo-status { font-size: 0.9rem; font-weight: bold; margin-top: 5px; display: block; min-height: 1.2rem; }
-        .sync-info { font-size: 0.65rem; color: #bdc3c7; display: block; margin-top: 2px; text-align: center; }
-        
-        .btn-action { border:none; background:none; cursor:pointer; font-weight:bold; padding: 5px 12px; border-radius: 4px; font-size: 0.85rem; }
-        .btn-edit { color: var(--orange); }
-        .btn-delete { color: #ff4757; }
-        .btn-delete:hover { background: rgba(255, 71, 87, 0.1); }
     </style>
 </head>
 <body>
 
+<button id="scrollTopBtn" onclick="window.scrollTo(0,0)" title="Remonter en haut">↑</button>
+
 <div class="container">
     <div class="header">
-        <span class="storage-warning">⚠️ Données stockées localement sur cet appareil. Exportez souvent pour synchroniser.</span>
+        <span class="storage-warning">⚠️ Stockage local (Navigateur). Pensez à exporter.</span>
         <svg class="car-icon" viewBox="0 0 24 24"><path d="M18.92 11c.08 0 .15.01.22.03C20.25 11.41 21 12.4 21 13.5V19c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1v-1H6v1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-5.5c0-1.1.75-2.09 1.86-2.47.07-.02.14-.03.22-.03L5.5 11l1.47-4.41C7.32 5.53 8.25 5 9.27 5h5.46c1.02 0 1.95.53 2.3 1.59L18.5 11h.42zM6.5 15c-.83 0-1.5.67-1.5 1.5S5.67 18 6.5 18s1.5-.67 1.5-1.5S7.33 15 6.5 15zm11 0c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zM15.5 7h-7l-1 3h9l-1-3z"/></svg>
-        <div class="header-text">
-            <h1>SUIVI MEGANE E-TECH</h1>
-            <p>Gestion Energie & Coûts Tempo</p>
+        <div>
+            <h1 style="font-size:1.2rem">MEGANE E-TECH</h1>
         </div>
         <div style="margin-left: auto; display: flex; gap: 8px;">
-            <div>
-                <button class="btn btn-save" title="Exporter vos données avec la date du jour" onclick="exportJSON()">💾 Exporter</button>
-                <span id="last-export-date" class="sync-info">Jamais exporté</span>
-            </div>
-            <div>
-                <button class="btn btn-save" title="Importer une sauvegarde JSON existante" onclick="document.getElementById('fileRestore').click()">📂 Restaurer</button>
-                <span id="last-import-date" class="sync-info">Jamais importé</span>
-            </div>
-            <input type="file" id="fileRestore" class="hidden" accept=".json" onchange="importJSON(event)">
-            <button class="btn" style="background:#c0392b" title="Effacer définitivement toutes les données" onclick="clearData()">🗑️ Reset</button>
+            <div style="text-align:center"><button class="btn" style="background:#34495e" onclick="exportJSON()">💾 Export</button><span id="last-export-date" style="font-size:0.5rem; display:block"></span></div>
+            <div style="text-align:center"><button class="btn" style="background:#34495e" onclick="document.getElementById('fileRestore').click()">📂 Import</button><span id="last-import-date" style="font-size:0.5rem; display:block"></span></div>
+            <input type="file" id="fileRestore" style="display:none" accept=".json" onchange="importJSON(event)">
         </div>
     </div>
 
     <div class="summary-cards">
-        <div class="card bleu">
-            <h3>Bleu</h3>
-            <div class="card-tarifs">HC: 0.1296€<br>HP: 0.1609€</div>
+        <div class="card bleu" id="card-bleu">
+            <div class="filter-indicator">Période</div>
+            <h3>Bleu</h3><div class="card-tarifs">0.13/0.16€</div>
             <div class="val" id="sum-bleu">0 kWh</div><small id="cost-bleu">0 €</small>
-            <span class="count" id="count-bleu">0 charge(s)</span>
         </div>
-        <div class="card blanc">
-            <h3>Blanc</h3>
-            <div class="card-tarifs">HC: 0.1485€<br>HP: 0.1893€</div>
+        <div class="card blanc" id="card-blanc">
+            <div class="filter-indicator">Période</div>
+            <h3>Blanc</h3><div class="card-tarifs">0.15/0.19€</div>
             <div class="val" id="sum-blanc">0 kWh</div><small id="cost-blanc">0 €</small>
-            <span class="count" id="count-blanc">0 charge(s)</span>
         </div>
-        <div class="card rouge">
-            <h3>Rouge</h3>
-            <div class="card-tarifs">HC: 0.1568€<br>HP: 0.7562€</div>
+        <div class="card rouge" id="card-rouge">
+            <div class="filter-indicator">Période</div>
+            <h3>Rouge</h3><div class="card-tarifs">0.16/0.76€</div>
             <div class="val" id="sum-rouge">0 kWh</div><small id="cost-rouge">0 €</small>
-            <span class="count" id="count-rouge">0 charge(s)</span>
         </div>
-        <div class="card total">
-            <h3>TOTAL</h3>
-            <div class="val" id="sum-total">0 kWh</div><small id="cost-total">0 €</small>
-            <span class="count" id="count-total">0 charge(s)</span>
+        <div class="card total" id="card-total">
+            <div class="filter-indicator">Période</div>
+            <h3>TOTAL</h3><div class="val" id="sum-total">0 kWh</div><small id="cost-total">0 €</small>
         </div>
     </div>
 
     <div class="tabs">
-        <button class="tab active" onclick="switchTab(event, 'tab-data')">Saisie & Historique</button>
+        <button class="tab active" onclick="switchTab(event, 'tab-data')">Historique</button>
         <button class="tab" onclick="switchTab(event, 'tab-charts')">Graphiques</button>
     </div>
 
     <div id="tab-data" class="tab-content active">
-        <div class="box" style="background:#e8f4fd; border-left: 5px solid var(--bleu);">
-            <h4 style="margin-bottom:10px">📥 Importer un fichier CSV (Excel)</h4>
-            <div style="display: flex; gap:15px; align-items: center; flex-wrap: wrap;">
-                <input type="file" id="csvFileInput" accept=".csv">
-                <button class="btn btn-csv" onclick="handleCsvFile()">⚡ Analyser le fichier</button>
-                <span id="csv-status" style="font-size: 0.8rem; font-weight: bold;"></span>
-            </div>
-        </div>
-
         <div class="box" style="background:#f1f3f5">
-            <h4 style="margin-bottom:10px">📅 Filtrer une période</h4>
             <div class="form-grid">
-                <div><label>Début</label><input type="date" id="f-start"></div>
-                <div><label>Fin</label><input type="date" id="f-end"></div>
-                <button class="btn btn-add" style="background:var(--bleu)" onclick="applyFilter()">Filtrer</button>
-                <button class="btn btn-cancel" onclick="resetFilter()">Reset</button>
-                <div id="filter-res" style="font-weight:bold; color:var(--dark); padding: 10px; border-radius: 4px; background: white; min-width: 250px; display: none;"></div>
+                <div><label style="font-size:0.7rem; font-weight:bold">Du</label><input type="date" id="f-start"></div>
+                <div><label style="font-size:0.7rem; font-weight:bold">Au</label><input type="date" id="f-end"></div>
+                <button class="btn" style="background:var(--bleu)" onclick="applyFilter()">Filtrer les cartes</button>
+                <button class="btn" style="background:#95a5a6" onclick="resetFilter()">Reset</button>
             </div>
         </div>
 
         <div class="box" id="form-container">
-            <h4 style="margin-bottom:15px; color:#916400">⚡ AJOUTER / MODIFIER UNE RECHARGE</h4>
             <div class="form-grid">
-                <div>
-                    <label>Date</label>
-                    <input type="date" id="in-date" onchange="checkTempoAPI()">
-                    <span id="tempo-status"></span>
-                </div>
-                <div><label>Couleur Tempo</label>
-                    <select id="in-tempo">
-                        <option>Bleu</option><option>Blanc</option><option>Rouge</option>
-                    </select>
-                </div>
-                <div><label>Type</label>
-                    <select id="in-type">
-                        <option value="HC">Heure Creuse</option>
-                        <option value="HP">Heure Pleine</option>
-                    </select>
-                </div>
-                <div><label>H. Début</label><input type="time" id="in-start" onchange="autoCalcEnd()"></div>
-                <div><label>Durée (HH:mm)</label><input type="text" id="in-duration" placeholder="02:30" oninput="autoCalcEnd()"></div>
-                <div><label>H. Fin</label><input type="time" id="in-end" readonly></div>
+                <div><label>Date</label><input type="date" id="in-date" onchange="checkTempoAPI()"><span id="tempo-status"></span></div>
+                <div><label>Couleur</label><select id="in-tempo"><option>Bleu</option><option>Blanc</option><option>Rouge</option></select></div>
+                <div><label>Type</label><select id="in-type"><option value="HC">HC</option><option value="HP">HP</option></select></div>
+                <div><label>Durée</label><input type="text" id="in-duration" placeholder="02:30"></div>
                 <div><label>kWh</label><input type="number" id="in-kwh" step="0.01"></div>
-                <div><label>Kilométrage</label><input type="number" id="in-km"></div>
-                <div style="display:flex; gap:5px">
-                    <button class="btn btn-add" id="main-btn" onclick="saveEntry()">Enregistrer</button>
-                    <button class="btn btn-cancel hidden" id="cancel-btn" onclick="resetForm()">Annuler</button>
-                </div>
+                <button class="btn" id="main-btn" style="background:var(--dark)" onclick="saveEntry()">Enregistrer</button>
             </div>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th><th>Tempo</th><th>Début</th><th>Durée</th><th>Fin</th><th>kWh</th><th>Coût</th><th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-        </table>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr><th>Date</th><th>Couleur</th><th>Durée</th><th>kWh</th><th>Coût</th><th>Action</th></tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
     </div>
 
     <div id="tab-charts" class="tab-content">
@@ -227,15 +152,12 @@
     let dataStore = JSON.parse(localStorage.getItem('ev_data_v8') || '[]');
     let editIndex = -1;
 
-    Chart.register(ChartDataLabels);
+    window.onscroll = function() {
+        document.getElementById("scrollTopBtn").style.display = (window.pageYOffset > 300) ? "block" : "none";
+    };
 
     window.onload = () => { 
         document.getElementById('in-date').valueAsDate = new Date();
-        const lastEx = localStorage.getItem('last_export_date');
-        const lastIm = localStorage.getItem('last_import_date');
-        if(lastEx) document.getElementById('last-export-date').innerText = "Dernier export : " + lastEx;
-        if(lastIm) document.getElementById('last-import-date').innerText = "Dernier import : " + lastIm;
-        checkTempoAPI();
         render(); 
     };
 
@@ -243,85 +165,51 @@
         const dateInput = document.getElementById('in-date').value;
         const status = document.getElementById('tempo-status');
         if (!dateInput) return;
-        status.innerHTML = "⏳...";
         try {
             const response = await fetch(`https://www.api-couleur-tempo.fr/api/jourTempo/${dateInput}`);
             const json = await response.json();
             const codes = { 1: "Bleu", 2: "Blanc", 3: "Rouge" };
-            if (json.codeJour && codes[json.codeJour]) {
-                const couleur = codes[json.codeJour];
-                document.getElementById('in-tempo').value = couleur;
-                status.innerHTML = `✅ ${couleur}`; 
-                status.style.color = "green";
-            } else status.innerHTML = "";
-        } catch (e) { status.innerHTML = "❌"; }
+            if (json.codeJour) {
+                document.getElementById('in-tempo').value = codes[json.codeJour];
+                status.innerText = "✅ " + codes[json.codeJour];
+            }
+        } catch (e) { status.innerText = ""; }
     }
 
-    function render() {
+    function render(filterData = null) {
+        const displayData = filterData || dataStore;
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = "";
-        let sums = { Bleu: 0, Blanc: 0, Rouge: 0, totalK: 0, totalC: 0 };
+        
+        let sums = { Bleu: 0, Blanc: 0, Rouge: 0, kwh: 0, cost: 0 };
         let costs = { Bleu: 0, Blanc: 0, Rouge: 0 };
-        let counts = { Bleu: 0, Blanc: 0, Rouge: 0, total: 0 };
-        dataStore.sort((a,b) => new Date(b.date) - new Date(a.date));
-        dataStore.forEach((item, idx) => {
+
+        displayData.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((item, idx) => {
             sums[item.tempo] += item.kwh;
             costs[item.tempo] += item.cost;
-            counts[item.tempo]++;
-            sums.totalK += item.kwh;
-            sums.totalC += item.cost;
-            counts.total++;
-            const badgeClass = `badge-${item.tempo.toLowerCase()}`;
+            sums.kwh += item.kwh;
+            sums.cost += item.cost;
+
             tbody.innerHTML += `
                 <tr>
                     <td><b>${item.date}</b></td>
-                    <td><span class="badge ${badgeClass}">${item.tempo}</span></td>
-                    <td>${item.start}</td><td>${item.duration}</td><td>${item.end}</td>
-                    <td><b>${item.kwh.toFixed(2)}</b></td><td>${item.cost.toFixed(2)} €</td>
-                    <td>
-                        <button class="btn-action btn-edit" onclick="editItem(${idx})">Modif.</button>
-                        <button class="btn-action btn-delete" onclick="deleteItem(${idx})">Suppr.</button>
-                    </td>
+                    <td><span class="badge badge-${item.tempo.toLowerCase()}">${item.tempo} ${item.type}</span></td>
+                    <td>${item.duration}</td>
+                    <td><b>${item.kwh.toFixed(2)}</b></td>
+                    <td>${item.cost.toFixed(2)} €</td>
+                    <td><button class="btn-action" onclick="deleteItem(${idx})">Suppr.</button></td>
                 </tr>`;
         });
+
+        const isFiltered = filterData !== null;
+        document.querySelectorAll('.filter-indicator').forEach(el => el.style.display = isFiltered ? 'block' : 'none');
+
         ['Bleu', 'Blanc', 'Rouge'].forEach(c => {
             document.getElementById(`sum-${c.toLowerCase()}`).innerText = sums[c].toFixed(1) + " kWh";
             document.getElementById(`cost-${c.toLowerCase()}`).innerText = costs[c].toFixed(2) + " €";
-            document.getElementById(`count-${c.toLowerCase()}`).innerText = counts[c] + " charge(s)";
         });
-        document.getElementById('sum-total').innerText = sums.totalK.toFixed(1) + " kWh";
-        document.getElementById('cost-total').innerText = sums.totalC.toFixed(2) + " €";
-        document.getElementById('count-total').innerText = counts.total + " charge(s)";
-    }
-
-    function initCharts() {
-        const months = [...new Set(dataStore.map(d => d.date.substring(0, 7)))].sort();
-        const dataK = months.map(m => dataStore.filter(d => d.date.startsWith(m)).reduce((a,b) => a + b.kwh, 0));
-        const dataC = months.map(m => dataStore.filter(d => d.date.startsWith(m)).reduce((a,b) => a + b.cost, 0));
-        const commonLabelStyle = {
-            display: true, backgroundColor: (context) => context.dataset.borderColor || context.dataset.backgroundColor,
-            borderRadius: 6, color: 'white', font: { weight: 'bold', size: 12 }, padding: 6, offset: 8, textAlign: 'center'
-        };
-        if(window.ch1) window.ch1.destroy();
-        if(window.ch2) window.ch2.destroy();
-        window.ch1 = new Chart(document.getElementById('chart-kwh'), {
-            type: 'bar', data: { labels: months, datasets: [{ label: 'kWh Consommés', data: dataK, backgroundColor: '#3498db', borderColor: '#2980b9' }] },
-            options: { maintainAspectRatio: false, layout: { padding: { top: 30 } },
-                plugins: {
-                    datalabels: { ...commonLabelStyle, anchor: 'end', align: 'top', formatter: (v) => v.toFixed(1) + ' kWh' },
-                    title: { display: true, text: 'CONSOMMATION MENSUELLE (kWh)', font: {size: 16} }
-                }
-            }
-        });
-        window.ch2 = new Chart(document.getElementById('chart-cost'), {
-            type: 'line', data: { labels: months, datasets: [{ label: 'Coût (€)', data: dataC, borderColor: '#e74c3c', pointBackgroundColor: '#e74c3c', pointRadius: 6, fill: true, backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.3 }] },
-            options: { maintainAspectRatio: false, layout: { padding: { top: 30 } },
-                plugins: {
-                    datalabels: { ...commonLabelStyle, anchor: 'center', align: 'top', formatter: (v) => v.toFixed(2) + ' €' },
-                    title: { display: true, text: 'COÛT MENSUEL (€)', font: {size: 16} }
-                }
-            }
-        });
+        document.getElementById('sum-total').innerText = sums.kwh.toFixed(1) + " kWh";
+        document.getElementById('cost-total').innerText = sums.cost.toFixed(2) + " €";
     }
 
     function applyFilter() {
@@ -329,76 +217,54 @@
         const e = document.getElementById('f-end').value;
         if(!s || !e) return;
         const filtered = dataStore.filter(d => d.date >= s && d.date <= e);
-        const kwh = filtered.reduce((a, b) => a + b.kwh, 0);
-        const cost = filtered.reduce((a, b) => a + b.cost, 0);
-        const res = document.getElementById('filter-res');
-        res.style.display = "block";
-        res.innerHTML = `Période : ${filtered.length} charges | ${kwh.toFixed(2)} kWh | ${cost.toFixed(2)} €`;
+        render(filtered);
     }
 
-    function resetFilter() { document.getElementById('f-start').value = ""; document.getElementById('f-end').value = ""; document.getElementById('filter-res').style.display = "none"; }
+    function resetFilter() {
+        document.getElementById('f-start').value = "";
+        document.getElementById('f-end').value = "";
+        render();
+    }
 
     function saveEntry() {
         const entry = {
             date: document.getElementById('in-date').value,
             tempo: document.getElementById('in-tempo').value,
             type: document.getElementById('in-type').value,
-            start: document.getElementById('in-start').value || "--:--",
             duration: document.getElementById('in-duration').value || "-",
-            end: document.getElementById('in-end').value || "--:--",
             kwh: parseFloat(document.getElementById('in-kwh').value) || 0,
-            km: parseInt(document.getElementById('in-km').value) || 0
         };
         if(!entry.date || entry.kwh <= 0) return alert("Date et kWh requis");
         entry.cost = entry.kwh * TARIFS[entry.tempo][entry.type];
-        if(editIndex === -1) dataStore.push(entry);
-        else dataStore[editIndex] = entry;
-        saveAndRefresh();
-        resetForm();
+        dataStore.push(entry);
+        localStorage.setItem('ev_data_v8', JSON.stringify(dataStore));
+        render();
     }
 
-    function handleCsvFile() {
-        const file = document.getElementById('csvFileInput').files[0];
-        if (!file) return;
+    function deleteItem(idx) {
+        if(confirm("Supprimer cette recharge ?")) {
+            dataStore.splice(idx, 1);
+            localStorage.setItem('ev_data_v8', JSON.stringify(dataStore));
+            render();
+        }
+    }
+
+    function exportJSON() {
+        const blob = new Blob([JSON.stringify(dataStore)], {type: 'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `sauvegarde_megane_${new Date().toLocaleDateString()}.json`;
+        a.click();
+    }
+
+    function importJSON(e) {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            const lines = e.target.result.split(/\r?\n/);
-            const sep = lines[0].includes(';') ? ';' : ',';
-            let start = false; let count = 0;
-            lines.forEach(line => {
-                const cols = line.split(sep);
-                if(cols.some(c => c.trim().toUpperCase() === "DATE")) { start = true; return; }
-                if(start && cols.length > 5 && cols[2].includes('/')) {
-                    const [d, m, y] = cols[2].split('/');
-                    const kwh = parseFloat(cols[7]?.replace(',', '.')) || 0;
-                    if(kwh > 0) {
-                        dataStore.push({
-                            date: `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`,
-                            tempo: cols[3]?.trim() || "Bleu", type: "HC", start: cols[4] || "--:--", duration: cols[6] || "-",
-                            end: cols[5] || "--:--", kwh: kwh,
-                            cost: parseFloat(cols[10]?.replace(/[€\s]/g, '').replace(',', '.')) || (kwh * 0.12),
-                            km: parseInt(cols[12]) || 0
-                        });
-                        count++;
-                    }
-                }
-            });
-            saveAndRefresh();
-            document.getElementById('csv-status').innerText = `✅ ${count} importés`;
+        reader.onload = (ev) => { 
+            dataStore = JSON.parse(ev.target.result); 
+            localStorage.setItem('ev_data_v8', JSON.stringify(dataStore));
+            render(); 
         };
-        reader.readAsText(file);
-    }
-
-    function autoCalcEnd() {
-        const start = document.getElementById('in-start').value;
-        const duration = document.getElementById('in-duration').value;
-        if (!start || !duration || !duration.includes(':')) return;
-        const [sh, sm] = start.split(':').map(Number);
-        const [dh, dm] = duration.split(':').map(Number);
-        let eh = sh + dh; let em = sm + dm;
-        if (em >= 60) { eh += Math.floor(em / 60); em = em % 60; }
-        eh = eh % 24;
-        document.getElementById('in-end').value = String(eh).padStart(2, '0') + ":" + String(em).padStart(2, '0');
+        reader.readAsText(e.target.files[0]);
     }
 
     function switchTab(evt, tabId) {
@@ -406,59 +272,7 @@
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         evt.currentTarget.classList.add('active');
-        if(tabId === 'tab-charts') setTimeout(initCharts, 100);
-    }
-
-    function saveAndRefresh() { localStorage.setItem('ev_data_v8', JSON.stringify(dataStore)); render(); }
-    function deleteItem(idx) { if(confirm("Supprimer définitivement cette recharge ?")) { dataStore.splice(idx, 1); saveAndRefresh(); } }
-    function clearData() { if(confirm("Tout effacer ?")) { dataStore = []; saveAndRefresh(); } }
-    
-    function editItem(i) {
-        editIndex = i; const it = dataStore[i];
-        document.getElementById('in-date').value=it.date;
-        document.getElementById('in-tempo').value=it.tempo;
-        document.getElementById('in-type').value=it.type;
-        document.getElementById('in-start').value=it.start;
-        document.getElementById('in-duration').value=it.duration;
-        document.getElementById('in-kwh').value=it.kwh;
-        document.getElementById('in-km').value=it.km;
-        autoCalcEnd();
-        document.getElementById('main-btn').innerText="Mettre à jour";
-        document.getElementById('cancel-btn').classList.remove('hidden');
-        document.getElementById('form-container').scrollIntoView();
-    }
-
-    function resetForm() { editIndex = -1; document.getElementById('main-btn').innerText="Enregistrer"; document.getElementById('cancel-btn').classList.add('hidden'); document.getElementById('in-kwh').value=""; document.getElementById('in-duration').value=""; document.getElementById('in-end').value=""; document.getElementById('tempo-status').innerHTML=""; }
-
-    function exportJSON() {
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('fr-FR').replace(/\//g, '-');
-        const timeStr = now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-        localStorage.setItem('last_export_date', `${dateStr} à ${timeStr}`);
-        document.getElementById('last-export-date').innerText = "Dernier export : " + dateStr + " à " + timeStr;
-        const blob = new Blob([JSON.stringify(dataStore)], {type: 'application/json'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `sauvegarde_megane_${dateStr}.json`;
-        a.click();
-    }
-
-    function importJSON(e) {
-        const reader = new FileReader();
-        reader.onload = (ev) => { 
-            try { 
-                dataStore = JSON.parse(ev.target.result); 
-                saveAndRefresh(); 
-                const now = new Date();
-                const dateStr = now.toLocaleDateString('fr-FR').replace(/\//g, '-');
-                const timeStr = now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-                const syncInfo = `${dateStr} à ${timeStr}`;
-                localStorage.setItem('last_import_date', syncInfo);
-                document.getElementById('last-import-date').innerText = "Dernier import : " + syncInfo;
-                alert("Données restaurées avec succès !"); 
-            } catch(e) { alert("Erreur lors de la lecture du fichier JSON."); } 
-        };
-        reader.readAsText(e.target.files[0]);
+        if(tabId === 'tab-charts') initCharts();
     }
 </script>
 </body>
