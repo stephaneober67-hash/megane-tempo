@@ -19,9 +19,15 @@
         body { background: #f0f2f5; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; }
         
-        .header { background: var(--dark); color: white; padding: 20px 25px; display: flex; align-items: center; gap: 20px; }
+        .header { background: var(--dark); color: white; padding: 20px 25px; display: flex; align-items: center; gap: 20px; position: relative; }
         .car-icon { width: 55px; height: 55px; fill: #3498db; background: white; padding: 8px; border-radius: 50%; }
         
+        /* Message de rappel stockage */
+        .storage-warning { 
+            position: absolute; top: 5px; right: 25px; 
+            font-size: 0.65rem; color: #bdc3c7; font-style: italic; 
+        }
+
         .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; padding: 20px; background: #f8f9fa; border-bottom: 1px solid #eee; }
         .card { padding: 15px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; overflow: hidden; }
         .card.bleu { background: var(--bleu); }
@@ -32,7 +38,6 @@
         .card .val { font-size: 1.4rem; font-weight: bold; }
         .card .count { font-size: 0.85rem; opacity: 0.9; margin-top: 5px; display: block; }
         
-        /* Style pour les tarifs dans les cartes */
         .card-tarifs { 
             position: absolute; right: 10px; top: 15px; 
             text-align: right; font-size: 0.75rem; 
@@ -86,9 +91,9 @@
         .chart-container { height: 450px; margin-bottom: 30px; background: #fff; padding: 20px; border: 1px solid #eee; border-radius: 8px; }
         .hidden { display: none; }
         #tempo-status { font-size: 0.9rem; font-weight: bold; margin-top: 5px; display: block; min-height: 1.2rem; }
-        .last-export-info { font-size: 0.65rem; color: #bdc3c7; display: block; margin-top: 2px; text-align: center; }
+        .sync-info { font-size: 0.65rem; color: #bdc3c7; display: block; margin-top: 2px; text-align: center; }
         
-        .btn-action { border:none; background:none; cursor:pointer; font-weight:bold; padding: 5px 8px; border-radius: 4px; }
+        .btn-action { border:none; background:none; cursor:pointer; font-weight:bold; padding: 5px 12px; border-radius: 4px; font-size: 0.85rem; }
         .btn-edit { color: var(--orange); }
         .btn-delete { color: #ff4757; }
         .btn-delete:hover { background: rgba(255, 71, 87, 0.1); }
@@ -98,6 +103,7 @@
 
 <div class="container">
     <div class="header">
+        <span class="storage-warning">⚠️ Données stockées localement sur cet appareil. Exportez souvent pour synchroniser.</span>
         <svg class="car-icon" viewBox="0 0 24 24"><path d="M18.92 11c.08 0 .15.01.22.03C20.25 11.41 21 12.4 21 13.5V19c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1v-1H6v1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-5.5c0-1.1.75-2.09 1.86-2.47.07-.02.14-.03.22-.03L5.5 11l1.47-4.41C7.32 5.53 8.25 5 9.27 5h5.46c1.02 0 1.95.53 2.3 1.59L18.5 11h.42zM6.5 15c-.83 0-1.5.67-1.5 1.5S5.67 18 6.5 18s1.5-.67 1.5-1.5S7.33 15 6.5 15zm11 0c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zM15.5 7h-7l-1 3h9l-1-3z"/></svg>
         <div class="header-text">
             <h1>SUIVI MEGANE E-TECH</h1>
@@ -106,9 +112,12 @@
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <div>
                 <button class="btn btn-save" title="Exporter vos données avec la date du jour" onclick="exportJSON()">💾 Exporter</button>
-                <span id="last-export-date" class="last-export-info">Jamais exporté</span>
+                <span id="last-export-date" class="sync-info">Jamais exporté</span>
             </div>
-            <button class="btn btn-save" title="Importer une sauvegarde JSON existante" onclick="document.getElementById('fileRestore').click()">📂 Restaurer</button>
+            <div>
+                <button class="btn btn-save" title="Importer une sauvegarde JSON existante" onclick="document.getElementById('fileRestore').click()">📂 Restaurer</button>
+                <span id="last-import-date" class="sync-info">Jamais importé</span>
+            </div>
             <input type="file" id="fileRestore" class="hidden" accept=".json" onchange="importJSON(event)">
             <button class="btn" style="background:#c0392b" title="Effacer définitivement toutes les données" onclick="clearData()">🗑️ Reset</button>
         </div>
@@ -150,7 +159,7 @@
             <h4 style="margin-bottom:10px">📥 Importer un fichier CSV (Excel)</h4>
             <div style="display: flex; gap:15px; align-items: center; flex-wrap: wrap;">
                 <input type="file" id="csvFileInput" accept=".csv">
-                <button class="btn btn-csv" title="Lire et ajouter les recharges contenues dans le fichier CSV" onclick="handleCsvFile()">⚡ Analyser le fichier</button>
+                <button class="btn btn-csv" onclick="handleCsvFile()">⚡ Analyser le fichier</button>
                 <span id="csv-status" style="font-size: 0.8rem; font-weight: bold;"></span>
             </div>
         </div>
@@ -160,8 +169,8 @@
             <div class="form-grid">
                 <div><label>Début</label><input type="date" id="f-start"></div>
                 <div><label>Fin</label><input type="date" id="f-end"></div>
-                <button class="btn btn-add" style="background:var(--bleu)" title="Calculer le résumé pour les dates sélectionnées" onclick="applyFilter()">Filtrer</button>
-                <button class="btn btn-cancel" title="Réinitialiser le filtre de date" onclick="resetFilter()">Reset</button>
+                <button class="btn btn-add" style="background:var(--bleu)" onclick="applyFilter()">Filtrer</button>
+                <button class="btn btn-cancel" onclick="resetFilter()">Reset</button>
                 <div id="filter-res" style="font-weight:bold; color:var(--dark); padding: 10px; border-radius: 4px; background: white; min-width: 250px; display: none;"></div>
             </div>
         </div>
@@ -190,10 +199,9 @@
                 <div><label>H. Fin</label><input type="time" id="in-end" readonly></div>
                 <div><label>kWh</label><input type="number" id="in-kwh" step="0.01"></div>
                 <div><label>Kilométrage</label><input type="number" id="in-km"></div>
-                
                 <div style="display:flex; gap:5px">
-                    <button class="btn btn-add" id="main-btn" title="Enregistrer cette recharge dans l'historique" onclick="saveEntry()">Enregistrer</button>
-                    <button class="btn btn-cancel hidden" id="cancel-btn" title="Annuler la modification en cours" onclick="resetForm()">Annuler</button>
+                    <button class="btn btn-add" id="main-btn" onclick="saveEntry()">Enregistrer</button>
+                    <button class="btn btn-cancel hidden" id="cancel-btn" onclick="resetForm()">Annuler</button>
                 </div>
             </div>
         </div>
@@ -224,7 +232,9 @@
     window.onload = () => { 
         document.getElementById('in-date').valueAsDate = new Date();
         const lastEx = localStorage.getItem('last_export_date');
+        const lastIm = localStorage.getItem('last_import_date');
         if(lastEx) document.getElementById('last-export-date').innerText = "Dernier export : " + lastEx;
+        if(lastIm) document.getElementById('last-import-date').innerText = "Dernier import : " + lastIm;
         checkTempoAPI();
         render(); 
     };
@@ -253,9 +263,7 @@
         let sums = { Bleu: 0, Blanc: 0, Rouge: 0, totalK: 0, totalC: 0 };
         let costs = { Bleu: 0, Blanc: 0, Rouge: 0 };
         let counts = { Bleu: 0, Blanc: 0, Rouge: 0, total: 0 };
-
         dataStore.sort((a,b) => new Date(b.date) - new Date(a.date));
-
         dataStore.forEach((item, idx) => {
             sums[item.tempo] += item.kwh;
             costs[item.tempo] += item.cost;
@@ -263,7 +271,6 @@
             sums.totalK += item.kwh;
             sums.totalC += item.cost;
             counts.total++;
-
             const badgeClass = `badge-${item.tempo.toLowerCase()}`;
             tbody.innerHTML += `
                 <tr>
@@ -272,12 +279,11 @@
                     <td>${item.start}</td><td>${item.duration}</td><td>${item.end}</td>
                     <td><b>${item.kwh.toFixed(2)}</b></td><td>${item.cost.toFixed(2)} €</td>
                     <td>
-                        <button class="btn-action btn-edit" onclick="editItem(${idx})" title="Modifier cette entrée">Modif.</button>
-                        <button class="btn-action btn-delete" onclick="deleteItem(${idx})" title="Supprimer définitivement cette recharge">Suppr.</button>
+                        <button class="btn-action btn-edit" onclick="editItem(${idx})">Modif.</button>
+                        <button class="btn-action btn-delete" onclick="deleteItem(${idx})">Suppr.</button>
                     </td>
                 </tr>`;
         });
-
         ['Bleu', 'Blanc', 'Rouge'].forEach(c => {
             document.getElementById(`sum-${c.toLowerCase()}`).innerText = sums[c].toFixed(1) + " kWh";
             document.getElementById(`cost-${c.toLowerCase()}`).innerText = costs[c].toFixed(2) + " €";
@@ -292,50 +298,24 @@
         const months = [...new Set(dataStore.map(d => d.date.substring(0, 7)))].sort();
         const dataK = months.map(m => dataStore.filter(d => d.date.startsWith(m)).reduce((a,b) => a + b.kwh, 0));
         const dataC = months.map(m => dataStore.filter(d => d.date.startsWith(m)).reduce((a,b) => a + b.cost, 0));
-        
         const commonLabelStyle = {
-            display: true,
-            backgroundColor: (context) => context.dataset.borderColor || context.dataset.backgroundColor,
-            borderRadius: 6,
-            color: 'white',
-            font: { weight: 'bold', size: 12 },
-            padding: 6,
-            offset: 8,
-            textAlign: 'center'
+            display: true, backgroundColor: (context) => context.dataset.borderColor || context.dataset.backgroundColor,
+            borderRadius: 6, color: 'white', font: { weight: 'bold', size: 12 }, padding: 6, offset: 8, textAlign: 'center'
         };
-
         if(window.ch1) window.ch1.destroy();
         if(window.ch2) window.ch2.destroy();
-        
         window.ch1 = new Chart(document.getElementById('chart-kwh'), {
-            type: 'bar', 
-            data: { 
-                labels: months, 
-                datasets: [{ label: 'kWh Consommés', data: dataK, backgroundColor: '#3498db', borderColor: '#2980b9' }] 
-            },
-            options: { 
-                maintainAspectRatio: false,
-                layout: { padding: { top: 30 } },
+            type: 'bar', data: { labels: months, datasets: [{ label: 'kWh Consommés', data: dataK, backgroundColor: '#3498db', borderColor: '#2980b9' }] },
+            options: { maintainAspectRatio: false, layout: { padding: { top: 30 } },
                 plugins: {
                     datalabels: { ...commonLabelStyle, anchor: 'end', align: 'top', formatter: (v) => v.toFixed(1) + ' kWh' },
                     title: { display: true, text: 'CONSOMMATION MENSUELLE (kWh)', font: {size: 16} }
                 }
             }
         });
-
         window.ch2 = new Chart(document.getElementById('chart-cost'), {
-            type: 'line', 
-            data: { 
-                labels: months, 
-                datasets: [{ 
-                    label: 'Coût (€)', data: dataC, borderColor: '#e74c3c', 
-                    pointBackgroundColor: '#e74c3c', pointRadius: 6, fill: true, 
-                    backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.3
-                }] 
-            },
-            options: { 
-                maintainAspectRatio: false,
-                layout: { padding: { top: 30 } },
+            type: 'line', data: { labels: months, datasets: [{ label: 'Coût (€)', data: dataC, borderColor: '#e74c3c', pointBackgroundColor: '#e74c3c', pointRadius: 6, fill: true, backgroundColor: 'rgba(231, 76, 60, 0.1)', tension: 0.3 }] },
+            options: { maintainAspectRatio: false, layout: { padding: { top: 30 } },
                 plugins: {
                     datalabels: { ...commonLabelStyle, anchor: 'center', align: 'top', formatter: (v) => v.toFixed(2) + ' €' },
                     title: { display: true, text: 'COÛT MENSUEL (€)', font: {size: 16} }
@@ -351,17 +331,12 @@
         const filtered = dataStore.filter(d => d.date >= s && d.date <= e);
         const kwh = filtered.reduce((a, b) => a + b.kwh, 0);
         const cost = filtered.reduce((a, b) => a + b.cost, 0);
-        const count = filtered.length;
         const res = document.getElementById('filter-res');
         res.style.display = "block";
-        res.innerHTML = `Période : ${count} charges | ${kwh.toFixed(2)} kWh | ${cost.toFixed(2)} €`;
+        res.innerHTML = `Période : ${filtered.length} charges | ${kwh.toFixed(2)} kWh | ${cost.toFixed(2)} €`;
     }
 
-    function resetFilter() {
-        document.getElementById('f-start').value = "";
-        document.getElementById('f-end').value = "";
-        document.getElementById('filter-res').style.display = "none";
-    }
+    function resetFilter() { document.getElementById('f-start').value = ""; document.getElementById('f-end').value = ""; document.getElementById('filter-res').style.display = "none"; }
 
     function saveEntry() {
         const entry = {
@@ -399,8 +374,7 @@
                     if(kwh > 0) {
                         dataStore.push({
                             date: `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`,
-                            tempo: cols[3]?.trim() || "Bleu",
-                            type: "HC", start: cols[4] || "--:--", duration: cols[6] || "-",
+                            tempo: cols[3]?.trim() || "Bleu", type: "HC", start: cols[4] || "--:--", duration: cols[6] || "-",
                             end: cols[5] || "--:--", kwh: kwh,
                             cost: parseFloat(cols[10]?.replace(/[€\s]/g, '').replace(',', '.')) || (kwh * 0.12),
                             km: parseInt(cols[12]) || 0
@@ -460,10 +434,8 @@
         const now = new Date();
         const dateStr = now.toLocaleDateString('fr-FR').replace(/\//g, '-');
         const timeStr = now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-        const info = `${dateStr} à ${timeStr}`;
-        localStorage.setItem('last_export_date', info);
-        document.getElementById('last-export-date').innerText = "Dernier export : " + info;
-
+        localStorage.setItem('last_export_date', `${dateStr} à ${timeStr}`);
+        document.getElementById('last-export-date').innerText = "Dernier export : " + dateStr + " à " + timeStr;
         const blob = new Blob([JSON.stringify(dataStore)], {type: 'application/json'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -474,8 +446,17 @@
     function importJSON(e) {
         const reader = new FileReader();
         reader.onload = (ev) => { 
-            try { dataStore = JSON.parse(ev.target.result); saveAndRefresh(); alert("Données restaurées !"); } 
-            catch(err) { alert("Fichier invalide"); }
+            try { 
+                dataStore = JSON.parse(ev.target.result); 
+                saveAndRefresh(); 
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('fr-FR').replace(/\//g, '-');
+                const timeStr = now.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+                const syncInfo = `${dateStr} à ${timeStr}`;
+                localStorage.setItem('last_import_date', syncInfo);
+                document.getElementById('last-import-date').innerText = "Dernier import : " + syncInfo;
+                alert("Données restaurées avec succès !"); 
+            } catch(e) { alert("Erreur lors de la lecture du fichier JSON."); } 
         };
         reader.readAsText(e.target.files[0]);
     }
