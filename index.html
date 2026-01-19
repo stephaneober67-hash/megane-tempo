@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi Megane E-Tech - Tempo Pro</title>
+    <title>Suivi Megane E-Tech - Tempo vs ES [V9.8.5]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
@@ -12,129 +12,198 @@
             --dark: #2c3e50; --green: #2ecc71; --orange: #f39c12; 
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background: #f0f2f5; padding: 15px; scroll-behavior: smooth; }
-        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        body { background: #f0f2f5; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); overflow: hidden; position: relative; }
         
-        /* HEADER FIXED */
-        .header { background: var(--dark); color: white; padding: 15px 25px; display: flex; align-items: center; gap: 20px; position: sticky; top: 0; z-index: 1000; }
-        .car-icon { width: 45px; height: 45px; fill: #3498db; background: white; padding: 8px; border-radius: 50%; }
-        .storage-warning { position: absolute; top: 2px; right: 25px; font-size: 0.6rem; color: #bdc3c7; }
+        .header { background: var(--dark); color: white; padding: 20px 25px; display: flex; align-items: center; gap: 20px; }
+        .car-icon { width: 55px; height: 55px; fill: #3498db; background: white; padding: 8px; border-radius: 50%; }
+        .header-controls { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; }
+        .save-mention { font-size: 0.75rem; color: #f1c40f; font-weight: bold; margin-bottom: 4px; }
+        .sync-info { font-size: 0.65rem; color: #bdc3c7; }
 
-        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; }
-        .card { padding: 12px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; transition: 0.3s; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 20px; background: #f8f9fa; border-bottom: 1px solid #eee; }
+        .card { padding: 15px; border-radius: 10px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+        .card:hover { transform: translateY(-3px); filter: brightness(1.1); }
         .card.bleu { background: var(--bleu); }
         .card.blanc { background: #bdc3c7; color: #2c3e50; }
         .card.rouge { background: var(--rouge); }
         .card.total { background: #8e44ad; }
-        .card .val { font-size: 1.3rem; font-weight: bold; }
-        .card-tarifs { position: absolute; right: 10px; top: 10px; text-align: right; font-size: 0.7rem; background: rgba(255,255,255,0.2); padding: 4px; border-radius: 4px; }
-        .filter-indicator { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; background: #f1c40f; color: #000; padding: 2px 5px; border-radius: 3px; display: none; margin-bottom: 5px; width: fit-content; }
-
-        .tabs { display: flex; background: #eee; position: sticky; top: 75px; z-index: 999; }
-        .tab { padding: 12px 20px; cursor: pointer; border: none; background: none; font-weight: bold; color: #666; }
-        .tab.active { background: white; color: var(--dark); border-bottom: 3px solid var(--dark); }
+        .card .val { font-size: 1.4rem; font-weight: bold; margin-top: 5px; }
         
-        .tab-content { display: none; padding: 15px; }
+        .card-tarifs-grid { position: absolute; right: 10px; top: 10px; display: flex; gap: 10px; font-size: 0.6rem; text-align: right; line-height: 1.2; font-weight: bold; opacity: 0.9; }
+        .tarif-col { display: flex; flex-direction: column; }
+        
+        .nb-charge { font-size: 0.7rem; font-weight: bold; margin-top: 5px; opacity: 0.8; text-transform: uppercase; }
+
+        .badge-filter { 
+            position: absolute; bottom: 10px; right: 10px; background: var(--orange); color: white; 
+            font-size: 0.6rem; padding: 2px 5px; border-radius: 4px; animation: blink 1s infinite; display: none;
+        }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        .tabs { display: flex; background: #eee; }
+        .tab { padding: 15px 25px; cursor: pointer; border: none; background: none; font-weight: bold; color: #666; }
+        .tab.active { background: white; color: var(--dark); border-bottom: 3px solid var(--dark); }
+        .tab-content { display: none; padding: 20px; }
         .tab-content.active { display: block; }
 
-        .box { background: #ffffff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; }
-        #form-container { background: #fff9db; border: 2px solid #f1c40f; }
-
-        /* TABLEAU AVEC SCROLL INTERNE */
-        .table-wrapper { max-height: 500px; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; }
-        thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 10; border-bottom: 2px solid #dee2e6; }
-        th, td { padding: 10px; text-align: left; font-size: 0.85rem; border-bottom: 1px solid #eee; }
-        
-        .btn-action { border:none; background:none; cursor:pointer; font-weight:bold; padding: 5px 10px; border-radius: 4px; color: #ff4757; }
-        .btn-edit { color: var(--orange); }
-
-        /* BOUTON RETOUR HAUT */
-        #scrollTopBtn {
-            position: fixed; bottom: 20px; right: 20px; z-index: 99;
-            background: var(--dark); color: white; border: none; padding: 12px;
-            border-radius: 50%; cursor: pointer; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
+        .box { background: #ffffff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .box-import { background: #e8f4fd; border-left: 5px solid var(--bleu); }
+        .box-saisie { background: #fff9db; border: 2px solid #f1c40f; }
+        .box-stats { background: #f0f7ff; border-left: 5px solid var(--dark); }
+        .box-title { font-size: 0.9rem; font-weight: bold; margin-bottom: 12px; color: var(--dark); text-transform: uppercase; display: block; }
 
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; align-items: flex-end; }
-        input, select { padding: 7px; border: 1px solid #ccc; border-radius: 4px; width: 100%; font-size: 0.85rem; }
-        .btn { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
-        .badge { padding: 3px 10px; border-radius: 15px; font-weight: 800; font-size: 0.7rem; color: white; }
+        label { font-size: 0.75rem; font-weight: bold; color: #444; margin-bottom: 3px; display: block; }
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; font-size: 0.85rem; }
+        
+        .btn { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 0.85rem; color: white; }
+        .btn-add { background: var(--dark); }
+        .btn-csv { background: var(--green); margin-top: 10px; }
+        .btn-save { background: #34495e; }
+        .btn-edit { background: var(--orange); padding: 4px 8px; font-size: 0.7rem; margin-right: 5px; }
+        .btn-delete { background: var(--rouge); padding: 4px 8px; font-size: 0.7rem; }
+        .btn-reset-filters { background: var(--orange); display: none; margin-top: 10px; animation: blink 1.5s infinite; }
+
+        .table-scroll { max-height: 500px; overflow-y: scroll; border: 1px solid #eee; border-radius: 8px; background: white; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 10; border-bottom: 2px solid #dee2e6; }
+        th, td { padding: 12px 10px; text-align: left; font-size: 0.85rem; border-bottom: 1px solid #eee; }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; color: white; }
         .badge-bleu { background: var(--bleu); }
-        .badge-blanc { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; }
+        .badge-blanc { background: #95a5a6; }
         .badge-rouge { background: var(--rouge); }
+
+        .chart-filters { display: flex; flex-wrap: wrap; gap: 20px; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; align-items: center; }
+        .year-selector { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .year-checkbox { display: flex; align-items: center; gap: 5px; font-size: 0.85rem; font-weight: bold; cursor: pointer; }
+        .year-checkbox input { width: auto; cursor: pointer; }
+        .chart-wrapper { background: white; padding: 20px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 25px; height: 450px; }
+        
+        #btn-top { position: fixed; bottom: 20px; right: 20px; background: var(--dark); color: white; width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; display: none; z-index: 100; font-size: 20px; }
+        .hidden { display: none !important; }
+
+        .es-config-panel { background: #fff3e0; border: 1px solid #ffb74d; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .es-grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 10px; }
+        .es-color-block { background: rgba(255,255,255,0.5); padding: 10px; border-radius: 5px; border: 1px solid #ffcc80; }
+        .es-color-block h4 { font-size: 0.8rem; margin-bottom: 8px; text-align: center; }
     </style>
 </head>
 <body>
 
-<button id="scrollTopBtn" onclick="window.scrollTo(0,0)" title="Remonter en haut">↑</button>
-
-<div class="container">
+<div class="container" id="top">
     <div class="header">
-        <span class="storage-warning">⚠️ Stockage local (Navigateur). Pensez à exporter.</span>
-        <svg class="car-icon" viewBox="0 0 24 24"><path d="M18.92 11c.08 0 .15.01.22.03C20.25 11.41 21 12.4 21 13.5V19c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1v-1H6v1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-5.5c0-1.1.75-2.09 1.86-2.47.07-.02.14-.03.22-.03L5.5 11l1.47-4.41C7.32 5.53 8.25 5 9.27 5h5.46c1.02 0 1.95.53 2.3 1.59L18.5 11h.42zM6.5 15c-.83 0-1.5.67-1.5 1.5S5.67 18 6.5 18s1.5-.67 1.5-1.5S7.33 15 6.5 15zm11 0c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zM15.5 7h-7l-1 3h9l-1-3z"/></svg>
-        <div>
-            <h1 style="font-size:1.2rem">MEGANE E-TECH</h1>
-        </div>
-        <div style="margin-left: auto; display: flex; gap: 8px;">
-            <div style="text-align:center"><button class="btn" style="background:#34495e" onclick="exportJSON()">💾 Export</button><span id="last-export-date" style="font-size:0.5rem; display:block"></span></div>
-            <div style="text-align:center"><button class="btn" style="background:#34495e" onclick="document.getElementById('fileRestore').click()">📂 Import</button><span id="last-import-date" style="font-size:0.5rem; display:block"></span></div>
-            <input type="file" id="fileRestore" style="display:none" accept=".json" onchange="importJSON(event)">
+        <svg class="car-icon" viewBox="0 0 24 24"><path d="M18.92 11c.08 0 .15.01.22.03C20.25 11.41 21 12.4 21 13.5V19c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1v-1H6v1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-5.5c0-1.1.75-2.09 1.86-2.47.07-.02.14-.03.22-.03L5.5 11l1.47-4.41C7.32 5.53 8.25 5 9.27 5h5.46c1.02 0 1.95.53 2.3 1.59L18.5 11h.42z"/></svg>
+        <div><h1 style="font-size: 1.4rem;">SUIVI MEGANE E-TECH <span style="font-size: 0.7rem; opacity: 0.6;">V9.8.5</span></h1></div>
+        <div class="header-controls">
+            <span class="save-mention">⚠️ Données stockées localement. Exportez pour sauvegarder.</span>
+            <div style="display: flex; gap: 10px; margin-bottom: 5px;">
+                <button class="btn btn-save" onclick="toggleESPanel()">⚙️ Config Tarifs ES</button>
+                <button class="btn btn-save" onclick="exportJSON()">💾 Exporter</button>
+                <button class="btn btn-save" onclick="document.getElementById('fileRestore').click()">📂 Restaurer</button>
+                <input type="file" id="fileRestore" class="hidden" accept=".json" onchange="importJSON(event)">
+            </div>
+            <div class="sync-info" id="last-export">Dernier export : Jamais</div>
+            <div class="sync-info" id="last-import">Dernier import : Jamais</div>
         </div>
     </div>
 
     <div class="summary-cards">
-        <div class="card bleu" id="card-bleu">
-            <div class="filter-indicator">Période</div>
-            <h3>Bleu</h3><div class="card-tarifs">0.13/0.16€</div>
-            <div class="val" id="sum-bleu">0 kWh</div><small id="cost-bleu">0 €</small>
+        <div class="card bleu" onclick="filterTableByTempo('Bleu')">
+            <div class="badge-filter" id="filter-Bleu">FILTRE ACTIF</div>
+            <div class="card-tarifs-grid" id="tarifs-bleu"></div>
+            <h3>Bleu</h3><div class="val" id="sum-bleu">0 kWh</div><small id="cost-bleu">0 €</small><br><small id="cost-es-bleu" style="opacity:0.8; font-style:italic;">ES: 0 €</small><div class="nb-charge" id="count-bleu">0 charge</div>
         </div>
-        <div class="card blanc" id="card-blanc">
-            <div class="filter-indicator">Période</div>
-            <h3>Blanc</h3><div class="card-tarifs">0.15/0.19€</div>
-            <div class="val" id="sum-blanc">0 kWh</div><small id="cost-blanc">0 €</small>
+        <div class="card blanc" onclick="filterTableByTempo('Blanc')">
+            <div class="badge-filter" id="filter-Blanc">FILTRE ACTIF</div>
+            <div class="card-tarifs-grid" id="tarifs-blanc"></div>
+            <h3>Blanc</h3><div class="val" id="sum-blanc">0 kWh</div><small id="cost-blanc">0 €</small><br><small id="cost-es-blanc" style="opacity:0.8; font-style:italic;">ES: 0 €</small><div class="nb-charge" id="count-blanc">0 charge</div>
         </div>
-        <div class="card rouge" id="card-rouge">
-            <div class="filter-indicator">Période</div>
-            <h3>Rouge</h3><div class="card-tarifs">0.16/0.76€</div>
-            <div class="val" id="sum-rouge">0 kWh</div><small id="cost-rouge">0 €</small>
+        <div class="card rouge" onclick="filterTableByTempo('Rouge')">
+            <div class="badge-filter" id="filter-Rouge">FILTRE ACTIF</div>
+            <div class="card-tarifs-grid" id="tarifs-rouge"></div>
+            <h3>Rouge</h3><div class="val" id="sum-rouge">0 kWh</div><small id="cost-rouge">0 €</small><br><small id="cost-es-rouge" style="opacity:0.8; font-style:italic;">ES: 0 €</small><div class="nb-charge" id="count-rouge">0 charge</div>
         </div>
-        <div class="card total" id="card-total">
-            <div class="filter-indicator">Période</div>
-            <h3>TOTAL</h3><div class="val" id="sum-total">0 kWh</div><small id="cost-total">0 €</small>
+        <div class="card total" onclick="resetAllFilters()">
+            <h3>TOTAL</h3><div class="val" id="sum-total">0 kWh</div><small id="cost-total">0 €</small><br><small id="cost-es-total" style="opacity:0.8; font-style:italic;">ES: 0 €</small><div class="nb-charge" id="count-total">0 charge</div>
         </div>
     </div>
 
     <div class="tabs">
-        <button class="tab active" onclick="switchTab(event, 'tab-data')">Historique</button>
-        <button class="tab" onclick="switchTab(event, 'tab-charts')">Graphiques</button>
+        <button class="tab active" onclick="switchTab(event, 'tab-data')">Saisie & Historique</button>
+        <button class="tab" onclick="switchTab(event, 'tab-charts')">Graphiques & Comparaisons</button>
     </div>
 
     <div id="tab-data" class="tab-content active">
-        <div class="box" style="background:#f1f3f5">
+        <div id="es-panel" class="box es-config-panel hidden">
+            <span class="box-title">⚙️ Configuration des tarifs Électricité de Strasbourg (ES)</span>
+            <div style="margin-bottom: 15px;">
+                <label>Année de validité (ex: 2025)</label>
+                <input type="number" id="es-year" style="max-width: 150px;">
+            </div>
+            <div class="es-grid-container">
+                <div class="es-color-block" style="border-top: 4px solid var(--bleu);">
+                    <h4>BLEU</h4>
+                    <label>HP ES</label><input type="number" id="es-bleu-hp" step="0.0001">
+                    <label>HC ES</label><input type="number" id="es-bleu-hc" step="0.0001">
+                </div>
+                <div class="es-color-block" style="border-top: 4px solid #95a5a6;">
+                    <h4>BLANC</h4>
+                    <label>HP ES</label><input type="number" id="es-blanc-hp" step="0.0001">
+                    <label>HC ES</label><input type="number" id="es-blanc-hc" step="0.0001">
+                </div>
+                <div class="es-color-block" style="border-top: 4px solid var(--rouge);">
+                    <h4>ROUGE</h4>
+                    <label>HP ES</label><input type="number" id="es-rouge-hp" step="0.0001">
+                    <label>HC ES</label><input type="number" id="es-rouge-hc" step="0.0001">
+                </div>
+            </div>
+            <button class="btn btn-add" style="margin-top: 15px; width: 100%;" id="btn-save-es" onclick="saveESTarif()">Enregistrer les tarifs ES pour cette année</button>
+            <div id="es-list" style="margin-top: 10px; font-size: 0.8rem; border-top: 1px solid #ffb74d; padding-top: 10px;"></div>
+        </div>
+
+        <div class="box box-stats">
+            <span class="box-title">📅 Statistiques par Période</span>
             <div class="form-grid">
-                <div><label style="font-size:0.7rem; font-weight:bold">Du</label><input type="date" id="f-start"></div>
-                <div><label style="font-size:0.7rem; font-weight:bold">Au</label><input type="date" id="f-end"></div>
-                <button class="btn" style="background:var(--bleu)" onclick="applyFilter()">Filtrer les cartes</button>
-                <button class="btn" style="background:#95a5a6" onclick="resetFilter()">Reset</button>
+                <div><label>Date début</label><input type="date" id="stats-start" onchange="calcPeriodStats()"></div>
+                <div><label>Date fin</label><input type="date" id="stats-end" onchange="calcPeriodStats()"></div>
+                <div style="grid-column: span 2; background: white; padding: 10px; border-radius: 5px; border: 1px solid #ced4da;">
+                    <span id="period-result" style="font-weight: bold; color: var(--dark); font-size: 0.85rem;">Sélectionnez deux dates pour voir le détail.</span>
+                    <button class="btn btn-reset-filters" id="btn-reset-filters" onclick="resetAllFilters()">❌ ANNULER FILTRES</button>
+                </div>
             </div>
         </div>
 
-        <div class="box" id="form-container">
+        <div class="box box-import">
+            <span class="box-title">📥 Importer Renault (CSV)</span>
+            <input type="file" id="csvFileInput" accept=".csv"><br>
+            <button class="btn btn-csv" onclick="handleCsvFile()">⚡ Analyser le fichier</button>
+        </div>
+
+        <span class="box-title" style="margin-left: 5px;">⚡ Ajouter / modifier une charge manuelle</span>
+        <div class="box box-saisie" id="form-container">
             <div class="form-grid">
-                <div><label>Date</label><input type="date" id="in-date" onchange="checkTempoAPI()"><span id="tempo-status"></span></div>
-                <div><label>Couleur</label><select id="in-tempo"><option>Bleu</option><option>Blanc</option><option>Rouge</option></select></div>
+                <div>
+                    <label>Date</label>
+                    <input type="date" id="in-date" onchange="checkTempoAPI()">
+                    <div id="tempo-status" style="font-size:0.7rem; font-weight:bold; margin-top:3px; height:12px;"></div>
+                </div>
+                <div><label>Tempo</label><select id="in-tempo"><option>Bleu</option><option>Blanc</option><option>Rouge</option></select></div>
                 <div><label>Type</label><select id="in-type"><option value="HC">HC</option><option value="HP">HP</option></select></div>
+                <div><label>Début</label><input type="time" id="in-start"></div>
                 <div><label>Durée</label><input type="text" id="in-duration" placeholder="02:30"></div>
                 <div><label>kWh</label><input type="number" id="in-kwh" step="0.01"></div>
-                <button class="btn" id="main-btn" style="background:var(--dark)" onclick="saveEntry()">Enregistrer</button>
+                <div><label>Km</label><input type="number" id="in-km"></div>
+                <button class="btn btn-add" id="main-btn" onclick="saveEntry()">Enregistrer</button>
+                <button class="btn btn-delete hidden" id="cancel-btn" onclick="resetForm()">Annuler</button>
             </div>
         </div>
 
-        <div class="table-wrapper">
+        <div class="table-scroll">
             <table>
                 <thead>
-                    <tr><th>Date</th><th>Couleur</th><th>Durée</th><th>kWh</th><th>Coût</th><th>Action</th></tr>
+                    <tr><th>Date</th><th>Tempo</th><th>Heures</th><th>kWh</th><th>Km</th><th>Coût Tempo</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="table-body"></tbody>
             </table>
@@ -142,137 +211,317 @@
     </div>
 
     <div id="tab-charts" class="tab-content">
-        <div class="chart-container"><canvas id="chart-kwh"></canvas></div>
-        <div class="chart-container"><canvas id="chart-cost"></canvas></div>
+        <div class="chart-filters">
+            <div style="font-weight: bold; font-size: 0.9rem; color: var(--dark);">Comparer les années (Tempo vs ES) :</div>
+            <div id="year-checkbox-container" class="year-selector"></div>
+        </div>
+        <div class="chart-wrapper"><canvas id="chart-kwh"></canvas></div>
+        <div class="chart-wrapper"><canvas id="chart-cost"></canvas></div>
     </div>
 </div>
 
+<button id="btn-top" onclick="window.scrollTo({top:0, behavior:'smooth'})">↑</button>
+
 <script>
     const TARIFS = { 'Bleu': { HC: 0.1296, HP: 0.1609 }, 'Blanc': { HC: 0.1485, HP: 0.1893 }, 'Rouge': { HC: 0.1568, HP: 0.7562 } };
-    let dataStore = JSON.parse(localStorage.getItem('ev_data_v8') || '[]');
-    let editIndex = -1;
+    const MOIS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jui", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+    const COLORS = ['#f39c12', '#9b59b6', '#2ecc71', '#7f8c8d', '#e67e22', '#16a085'];
+    
+    let dataStore = JSON.parse(localStorage.getItem('ev_data_v9_4') || '[]');
+    let esTarifs = JSON.parse(localStorage.getItem('es_tarifs') || '{}');
+    let currentFilterColor = null; let editIndex = -1; let chartKwh = null, chartCost = null;
 
-    window.onscroll = function() {
-        document.getElementById("scrollTopBtn").style.display = (window.pageYOffset > 300) ? "block" : "none";
-    };
-
-    window.onload = () => { 
+    window.onload = () => {
         document.getElementById('in-date').valueAsDate = new Date();
-        render(); 
+        updateDisplayLastSync();
+        renderESTarifs();
+        checkTempoAPI();
+        renderAll();
     };
 
-    async function checkTempoAPI() {
-        const dateInput = document.getElementById('in-date').value;
-        const status = document.getElementById('tempo-status');
-        if (!dateInput) return;
-        try {
-            const response = await fetch(`https://www.api-couleur-tempo.fr/api/jourTempo/${dateInput}`);
-            const json = await response.json();
-            const codes = { 1: "Bleu", 2: "Blanc", 3: "Rouge" };
-            if (json.codeJour) {
-                document.getElementById('in-tempo').value = codes[json.codeJour];
-                status.innerText = "✅ " + codes[json.codeJour];
-            }
-        } catch (e) { status.innerText = ""; }
+    function toggleESPanel() {
+        document.getElementById('es-panel').classList.toggle('hidden');
     }
 
-    function render(filterData = null) {
-        const displayData = filterData || dataStore;
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = "";
-        
-        let sums = { Bleu: 0, Blanc: 0, Rouge: 0, kwh: 0, cost: 0 };
-        let costs = { Bleu: 0, Blanc: 0, Rouge: 0 };
-
-        displayData.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((item, idx) => {
-            sums[item.tempo] += item.kwh;
-            costs[item.tempo] += item.cost;
-            sums.kwh += item.kwh;
-            sums.cost += item.cost;
-
-            tbody.innerHTML += `
-                <tr>
-                    <td><b>${item.date}</b></td>
-                    <td><span class="badge badge-${item.tempo.toLowerCase()}">${item.tempo} ${item.type}</span></td>
-                    <td>${item.duration}</td>
-                    <td><b>${item.kwh.toFixed(2)}</b></td>
-                    <td>${item.cost.toFixed(2)} €</td>
-                    <td><button class="btn-action" onclick="deleteItem(${idx})">Suppr.</button></td>
-                </tr>`;
-        });
-
-        const isFiltered = filterData !== null;
-        document.querySelectorAll('.filter-indicator').forEach(el => el.style.display = isFiltered ? 'block' : 'none');
-
-        ['Bleu', 'Blanc', 'Rouge'].forEach(c => {
-            document.getElementById(`sum-${c.toLowerCase()}`).innerText = sums[c].toFixed(1) + " kWh";
-            document.getElementById(`cost-${c.toLowerCase()}`).innerText = costs[c].toFixed(2) + " €";
-        });
-        document.getElementById('sum-total').innerText = sums.kwh.toFixed(1) + " kWh";
-        document.getElementById('cost-total').innerText = sums.cost.toFixed(2) + " €";
-    }
-
-    function applyFilter() {
-        const s = document.getElementById('f-start').value;
-        const e = document.getElementById('f-end').value;
-        if(!s || !e) return;
-        const filtered = dataStore.filter(d => d.date >= s && d.date <= e);
-        render(filtered);
-    }
-
-    function resetFilter() {
-        document.getElementById('f-start').value = "";
-        document.getElementById('f-end').value = "";
-        render();
-    }
-
-    function saveEntry() {
-        const entry = {
-            date: document.getElementById('in-date').value,
-            tempo: document.getElementById('in-tempo').value,
-            type: document.getElementById('in-type').value,
-            duration: document.getElementById('in-duration').value || "-",
-            kwh: parseFloat(document.getElementById('in-kwh').value) || 0,
+    function saveESTarif() {
+        const year = document.getElementById('es-year').value;
+        if(!year) return alert("Veuillez saisir l'année.");
+        esTarifs[year] = {
+            'Bleu': { HP: parseFloat(document.getElementById('es-bleu-hp').value) || 0, HC: parseFloat(document.getElementById('es-bleu-hc').value) || 0 },
+            'Blanc': { HP: parseFloat(document.getElementById('es-blanc-hp').value) || 0, HC: parseFloat(document.getElementById('es-blanc-hc').value) || 0 },
+            'Rouge': { HP: parseFloat(document.getElementById('es-rouge-hp').value) || 0, HC: parseFloat(document.getElementById('es-rouge-hc').value) || 0 }
         };
-        if(!entry.date || entry.kwh <= 0) return alert("Date et kWh requis");
-        entry.cost = entry.kwh * TARIFS[entry.tempo][entry.type];
-        dataStore.push(entry);
-        localStorage.setItem('ev_data_v8', JSON.stringify(dataStore));
-        render();
+        localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
+        renderESTarifs();
+        renderAll();
+        if(chartCost) updateCharts();
+        alert("Tarifs enregistrés pour l'année " + year);
     }
 
-    function deleteItem(idx) {
-        if(confirm("Supprimer cette recharge ?")) {
-            dataStore.splice(idx, 1);
-            localStorage.setItem('ev_data_v8', JSON.stringify(dataStore));
-            render();
+    function renderESTarifs() {
+        const list = document.getElementById('es-list');
+        list.innerHTML = "<strong>Tarifs ES par année :</strong><br>";
+        for(let y in esTarifs) {
+            list.innerHTML += `Année ${y} | 
+                <span style="color:orange; cursor:pointer; font-weight:bold" onclick="editESTarif('${y}')">Modifier</span> - 
+                <span style="color:red; cursor:pointer; font-weight:bold" onclick="deleteESTarif('${y}')">Supprimer</span><br>`;
         }
     }
 
+    function editESTarif(y) {
+        const t = esTarifs[y];
+        document.getElementById('es-year').value = y;
+        document.getElementById('es-bleu-hp').value = t['Bleu'].HP;
+        document.getElementById('es-bleu-hc').value = t['Bleu'].HC;
+        document.getElementById('es-blanc-hp').value = t['Blanc'].HP;
+        document.getElementById('es-blanc-hc').value = t['Blanc'].HC;
+        document.getElementById('es-rouge-hp').value = t['Rouge'].HP;
+        document.getElementById('es-rouge-hc').value = t['Rouge'].HC;
+        document.getElementById('btn-save-es').innerText = "Mettre à jour les tarifs ES pour " + y;
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function deleteESTarif(y) { if(confirm(`Supprimer les tarifs ES pour l'année ${y} ?`)) { delete esTarifs[y]; localStorage.setItem('es_tarifs', JSON.stringify(esTarifs)); renderESTarifs(); renderAll(); } }
+
+    function updateDisplayLastSync() {
+        document.getElementById('last-export').innerText = "Dernier export : " + (localStorage.getItem('last_exp') || "Jamais");
+        document.getElementById('last-import').innerText = "Dernier import : " + (localStorage.getItem('last_imp') || "Jamais");
+    }
+
+    window.onscroll = () => { document.getElementById('btn-top').style.display = window.scrollY > 300 ? 'block' : 'none'; };
+
+    async function checkTempoAPI() {
+        const d = document.getElementById('in-date').value;
+        const statusDiv = document.getElementById('tempo-status');
+        if(!d) return;
+        try {
+            const res = await fetch(`https://www.api-couleur-tempo.fr/api/jourTempo/${d}`);
+            const json = await res.json();
+            const codes = { 1: "Bleu", 2: "Blanc", 3: "Rouge" };
+            const textColors = { "Bleu": "#007bff", "Blanc": "#7f8c8d", "Rouge": "#ff4757" };
+            if (json.codeJour) {
+                const colorLabel = codes[json.codeJour];
+                document.getElementById('in-tempo').value = colorLabel;
+                statusDiv.innerText = "Jour " + colorLabel;
+                statusDiv.style.color = textColors[colorLabel];
+            }
+        } catch (e) { statusDiv.innerText = ""; }
+    }
+
+    function renderAll() {
+        updateCards(); renderTable();
+        document.querySelectorAll('.badge-filter').forEach(b => b.style.display = 'none');
+        if(currentFilterColor) document.getElementById('filter-'+currentFilterColor).style.display = 'block';
+        const isFiltered = currentFilterColor || document.getElementById('stats-start').value;
+        document.getElementById('btn-reset-filters').style.display = isFiltered ? 'inline-block' : 'none';
+    }
+
+    function updateCards() {
+        const start = document.getElementById('stats-start').value;
+        const end = document.getElementById('stats-end').value;
+        let source = dataStore;
+        if(start && end) source = dataStore.filter(d => d.date >= start && d.date <= end);
+        
+        let s = { Bleu: 0, Blanc: 0, Rouge: 0, k: 0, c: 0, cES: 0 };
+        let n = { Bleu: 0, Blanc: 0, Rouge: 0, total: 0 };
+        let esSum = { Bleu: 0, Blanc: 0, Rouge: 0 };
+
+        source.forEach(d => {
+            const year = d.date.substring(0,4);
+            s[d.tempo] += d.kwh;
+            n[d.tempo]++;
+            n.total++;
+            s.k += d.kwh;
+            s.c += d.cost;
+            if(esTarifs[year] && esTarifs[year][d.tempo]) {
+                let costItem = d.kwh * esTarifs[year][d.tempo][d.type];
+                esSum[d.tempo] += costItem;
+                s.cES += costItem;
+            }
+        });
+
+        ['Bleu','Blanc','Rouge'].forEach(c => {
+            document.getElementById(`sum-${c.toLowerCase()}`).innerText = s[c].toFixed(1) + " kWh";
+            document.getElementById(`cost-${c.toLowerCase()}`).innerText = (source.filter(d=>d.tempo===c).reduce((a,b)=>a+b.cost,0)).toFixed(2) + " €";
+            document.getElementById(`cost-es-${c.toLowerCase()}`).innerText = "ES: " + esSum[c].toFixed(2) + " €";
+            document.getElementById(`count-${c.toLowerCase()}`).innerText = n[c] + " charge(s)";
+            
+            let lastYear = Object.keys(esTarifs).sort().pop();
+            let esHC = (lastYear && esTarifs[lastYear][c]) ? esTarifs[lastYear][c].HC : "---";
+            let esHP = (lastYear && esTarifs[lastYear][c]) ? esTarifs[lastYear][c].HP : "---";
+            
+            document.getElementById(`tarifs-${c.toLowerCase()}`).innerHTML = `
+                <div class="tarif-col">TEMPO<br>HC: ${TARIFS[c].HC}<br>HP: ${TARIFS[c].HP}</div>
+                <div class="tarif-col">ES<br>HC: ${esHC}<br>HP: ${esHP}</div>
+            `;
+        });
+        document.getElementById('sum-total').innerText = s.k.toFixed(1) + " kWh";
+        document.getElementById('cost-total').innerText = s.c.toFixed(2) + " €";
+        document.getElementById('cost-es-total').innerText = "ES: " + s.cES.toFixed(2) + " €";
+        document.getElementById('count-total').innerText = n.total + " charge(s)";
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('table-body'); tbody.innerHTML = "";
+        const start = document.getElementById('stats-start').value;
+        const end = document.getElementById('stats-end').value;
+        let displayData = [...dataStore];
+        if(start && end) displayData = displayData.filter(d => d.date >= start && d.date <= end);
+        if(currentFilterColor) displayData = displayData.filter(d => d.tempo === currentFilterColor);
+        displayData.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((item) => {
+            const realIdx = dataStore.indexOf(item);
+            tbody.innerHTML += `<tr><td>${item.date}</td><td><span class="badge badge-${item.tempo.toLowerCase()}">${item.tempo} ${item.type}</span></td><td>${item.start}</td><td><b>${item.kwh.toFixed(1)}</b></td><td>${item.km || '-'}</td><td>${item.cost.toFixed(2)}€</td><td><button class="btn btn-edit" onclick="editItem(${realIdx})">Modifier</button><button class="btn btn-delete" onclick="deleteItem(${realIdx})">X</button></td></tr>`;
+        });
+    }
+
+    function handleCsvFile() {
+        const file = document.getElementById('csvFileInput').files[0];
+        if(!file) return alert("Svp, choisissez un fichier CSV");
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+            const separator = text.includes(';') ? ';' : ',';
+            let headerIdx = -1;
+            for(let i=0; i<lines.length; i++) {
+                if(lines[i].toUpperCase().includes("DATE") && lines[i].toUpperCase().includes("KWH")) {
+                    headerIdx = i; break;
+                }
+            }
+            if(headerIdx === -1) return alert("Structure non reconnue.");
+            const rawHeaders = lines[headerIdx].split(separator).map(h => h.trim());
+            const idxDate = rawHeaders.findIndex(h => h.toUpperCase() === "DATE");
+            const idxTempo = rawHeaders.findIndex(h => h.toUpperCase() === "TEMPO");
+            const idxStart = rawHeaders.findIndex(h => h.toUpperCase() === "DÉBUT");
+            const idxKwh = rawHeaders.findIndex(h => h.toUpperCase().includes("KWH"));
+            const idxKm = rawHeaders.findIndex(h => h.toUpperCase().includes("KM"));
+            let addedCount = 0; let duplicateCount = 0;
+            for(let i = headerIdx + 1; i < lines.length; i++) {
+                const c = lines[i].split(separator).map(x => x.trim().replace(/"/g, ''));
+                if (c.length < rawHeaders.length || !c[idxDate]) continue;
+                const rawDate = c[idxDate].split('/');
+                if(rawDate.length !== 3) continue;
+                const date = `${rawDate[2]}-${rawDate[1].padStart(2,'0')}-${rawDate[0].padStart(2,'0')}`;
+                const kwh = parseFloat(c[idxKwh].replace(',', '.').replace(' ', '').replace('€', '')) || 0;
+                if(kwh <= 0) continue;
+                const start = idxStart !== -1 ? c[idxStart] : "22:00";
+                const tempo = (idxTempo !== -1 && c[idxTempo]) ? (c[idxTempo].charAt(0).toUpperCase() + c[idxTempo].slice(1).toLowerCase()) : "Bleu";
+                const type = (start >= "06:00" && start < "22:00") ? "HP" : "HC";
+                const km = idxKm !== -1 ? c[idxKm] : "";
+                if(!dataStore.some(x => x.date === date && Math.abs(x.kwh - kwh) < 0.01)) {
+                    dataStore.push({ date, tempo, type, start, kwh, km, cost: kwh * (TARIFS[tempo] ? TARIFS[tempo][type] : 0.12), duration: "00:00" });
+                    addedCount++;
+                } else { duplicateCount++; }
+            }
+            localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore)); renderAll();
+            alert(`Import : ${addedCount} ajoutés, ${duplicateCount} doublons.`);
+        };
+        reader.readAsText(file);
+    }
+
+    function filterTableByTempo(color) { currentFilterColor = color; renderAll(); }
+    function resetAllFilters() { currentFilterColor = null; document.getElementById('stats-start').value = ""; document.getElementById('stats-end').value = ""; renderAll(); }
+    function calcPeriodStats() { renderAll(); }
+
+    function saveEntry() {
+        const kwh = parseFloat(document.getElementById('in-kwh').value) || 0;
+        const tempo = document.getElementById('in-tempo').value;
+        const type = document.getElementById('in-type').value;
+        const entry = { date: document.getElementById('in-date').value, tempo, type, start: document.getElementById('in-start').value || "00:00", duration: document.getElementById('in-duration').value || "00:00", kwh, km: document.getElementById('in-km').value, cost: kwh * TARIFS[tempo][type] };
+        if(editIndex > -1) dataStore[editIndex] = entry; else dataStore.push(entry);
+        localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore)); resetForm(); renderAll();
+    }
+
+    function editItem(idx) {
+        editIndex = idx; const d = dataStore[idx];
+        document.getElementById('in-date').value = d.date; document.getElementById('in-tempo').value = d.tempo;
+        document.getElementById('in-type').value = d.type; document.getElementById('in-start').value = d.start;
+        document.getElementById('in-duration').value = d.duration; document.getElementById('in-kwh').value = d.kwh;
+        document.getElementById('in-km').value = d.km; document.getElementById('main-btn').innerText = "Mettre à jour";
+        document.getElementById('cancel-btn').classList.remove('hidden');
+        checkTempoAPI();
+    }
+
+    function resetForm() { editIndex = -1; document.getElementById('main-btn').innerText = "Enregistrer"; document.getElementById('cancel-btn').classList.add('hidden'); }
+    function deleteItem(idx) { if(confirm("Supprimer ?")) { dataStore.splice(idx,1); localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore)); renderAll(); } }
+
+    function switchTab(evt, id) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(id).classList.add('active'); evt.currentTarget.classList.add('active');
+        if(id === 'tab-charts') initChartFilters();
+    }
+
+    function initChartFilters() {
+        const years = [...new Set(dataStore.map(d => d.date.substring(0,4)))].sort();
+        const container = document.getElementById('year-checkbox-container');
+        if(!container) return;
+        container.innerHTML = "";
+        years.forEach((y, index) => {
+            const isChecked = index === years.length - 1 ? 'checked' : ''; 
+            container.innerHTML += `<label class="year-checkbox"><input type="checkbox" value="${y}" ${isChecked} onchange="updateCharts()"> ${y}</label>`;
+        });
+        updateCharts();
+    }
+
+    function updateCharts() {
+        const selectedYears = Array.from(document.querySelectorAll('#year-checkbox-container input:checked')).map(cb => cb.value);
+        if(selectedYears.length === 0) return;
+        const datasetsKwh = []; const datasetsCost = [];
+
+        selectedYears.forEach((year, i) => {
+            let dataK = Array(12).fill(0), dataC = Array(12).fill(0), dataES = Array(12).fill(0);
+            dataStore.filter(d => d.date.startsWith(year)).forEach(d => {
+                let mIdx = parseInt(d.date.substring(5,7)) - 1;
+                dataK[mIdx] += d.kwh;
+                dataC[mIdx] += d.cost;
+                if(esTarifs[year] && esTarifs[year][d.tempo]) {
+                    dataES[mIdx] += d.kwh * esTarifs[year][d.tempo][d.type];
+                }
+            });
+
+            const color = COLORS[i % COLORS.length];
+            datasetsKwh.push({ label: `kWh ${year}`, data: dataK, backgroundColor: color, borderColor: color, borderWidth: 1 });
+            datasetsCost.push({ label: `Coût Tempo ${year}`, data: dataC, borderColor: color, backgroundColor: color + '33', fill: false, tension: 0.3 });
+            if(esTarifs[year]) datasetsCost.push({ label: `Coût ES ${year}`, data: dataES, borderColor: color, borderDash: [5, 5], backgroundColor: 'transparent', fill: false, tension: 0.3 });
+        });
+
+        if(chartKwh) chartKwh.destroy();
+        if(chartCost) chartCost.destroy();
+
+        const commonOptions = (title) => ({
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                title: { display: true, text: title, font: { size: 16 } },
+                datalabels: { display: true, align: 'top', backgroundColor: '#fff', borderRadius: 4, color: '#000', font: { weight: 'bold', size: 10 }, padding: 4, formatter: (v) => v > 0 ? v.toFixed(1) : '' }
+            }
+        });
+
+        chartKwh = new Chart(document.getElementById('chart-kwh').getContext('2d'), { type:'bar', data:{labels:MOIS_FR, datasets:datasetsKwh}, plugins:[ChartDataLabels], options:commonOptions('Consommation par mois (kWh)') });
+        chartCost = new Chart(document.getElementById('chart-cost').getContext('2d'), { type:'line', data:{labels:MOIS_FR, datasets:datasetsCost}, plugins:[ChartDataLabels], options:commonOptions('Comparatif Coût Tempo vs ES (€)') });
+    }
+
     function exportJSON() {
-        const blob = new Blob([JSON.stringify(dataStore)], {type: 'application/json'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `sauvegarde_megane_${new Date().toLocaleDateString()}.json`;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('fr-FR').split('/').join('-');
+        localStorage.setItem('last_exp', now.toLocaleString('fr-FR'));
+        const blob = new Blob([JSON.stringify({data: dataStore, es: esTarifs})], {type: 'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `suivi-megane-complet_${dateStr}.json`;
         a.click();
     }
 
     function importJSON(e) {
         const reader = new FileReader();
-        reader.onload = (ev) => { 
-            dataStore = JSON.parse(ev.target.result); 
-            localStorage.setItem('ev_data_v8', JSON.stringify(dataStore));
-            render(); 
+        reader.onload = (ev) => {
+            const imported = JSON.parse(ev.target.result);
+            if(imported.data) { dataStore = imported.data; esTarifs = imported.es || {}; }
+            else { dataStore = imported; }
+            localStorage.setItem('last_imp', new Date().toLocaleString('fr-FR'));
+            localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore));
+            localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
+            updateDisplayLastSync(); renderESTarifs(); renderAll();
         };
         reader.readAsText(e.target.files[0]);
-    }
-
-    function switchTab(evt, tabId) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        evt.currentTarget.classList.add('active');
-        if(tabId === 'tab-charts') initCharts();
     }
 </script>
 </body>
