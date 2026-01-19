@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi Megane E-Tech - Tempo vs ES [V9.8.5]</title>
+    <title>Suivi Megane E-Tech - Tempo vs ES [V9.8.6]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
@@ -95,7 +95,7 @@
 <div class="container" id="top">
     <div class="header">
         <svg class="car-icon" viewBox="0 0 24 24"><path d="M18.92 11c.08 0 .15.01.22.03C20.25 11.41 21 12.4 21 13.5V19c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1v-1H6v1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-5.5c0-1.1.75-2.09 1.86-2.47.07-.02.14-.03.22-.03L5.5 11l1.47-4.41C7.32 5.53 8.25 5 9.27 5h5.46c1.02 0 1.95.53 2.3 1.59L18.5 11h.42z"/></svg>
-        <div><h1 style="font-size: 1.4rem;">SUIVI MEGANE E-TECH <span style="font-size: 0.7rem; opacity: 0.6;">V9.8.5</span></h1></div>
+        <div><h1 style="font-size: 1.4rem;">SUIVI MEGANE E-TECH <span style="font-size: 0.7rem; opacity: 0.6;">V9.8.6</span></h1></div>
         <div class="header-controls">
             <span class="save-mention">⚠️ Données stockées localement. Exportez pour sauvegarder.</span>
             <div style="display: flex; gap: 10px; margin-bottom: 5px;">
@@ -504,19 +504,35 @@
     function exportJSON() {
         const now = new Date();
         const dateStr = now.toLocaleDateString('fr-FR').split('/').join('-');
-        localStorage.setItem('last_exp', now.toLocaleString('fr-FR'));
-        const blob = new Blob([JSON.stringify({data: dataStore, es: esTarifs})], {type: 'application/json'});
+        const fullDate = now.toLocaleString('fr-FR');
+        localStorage.setItem('last_exp', fullDate);
+        
+        const exportObj = {
+            data: dataStore, 
+            es: esTarifs,
+            last_export: fullDate,
+            last_import: localStorage.getItem('last_imp') || "Jamais"
+        };
+        
+        const blob = new Blob([JSON.stringify(exportObj)], {type: 'application/json'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `suivi-megane-complet_${dateStr}.json`;
         a.click();
+        updateDisplayLastSync();
     }
 
     function importJSON(e) {
         const reader = new FileReader();
         reader.onload = (ev) => {
             const imported = JSON.parse(ev.target.result);
-            if(imported.data) { dataStore = imported.data; esTarifs = imported.es || {}; }
-            else { dataStore = imported; }
-            localStorage.setItem('last_imp', new Date().toLocaleString('fr-FR'));
+            if(imported.data) { 
+                dataStore = imported.data; 
+                esTarifs = imported.es || {};
+                if(imported.last_export) localStorage.setItem('last_exp', imported.last_export);
+            } else { 
+                dataStore = imported; 
+            }
+            const nowImport = new Date().toLocaleString('fr-FR');
+            localStorage.setItem('last_imp', nowImport);
             localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore));
             localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
             updateDisplayLastSync(); renderESTarifs(); renderAll();
