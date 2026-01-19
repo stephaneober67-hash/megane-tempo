@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi Megane E-Tech - Tempo vs ES [V9.8.6]</title>
+    <title>Suivi Megane E-Tech - Tempo vs ES [V9.8.8]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
@@ -95,7 +95,7 @@
 <div class="container" id="top">
     <div class="header">
         <svg class="car-icon" viewBox="0 0 24 24"><path d="M18.92 11c.08 0 .15.01.22.03C20.25 11.41 21 12.4 21 13.5V19c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1v-1H6v1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-5.5c0-1.1.75-2.09 1.86-2.47.07-.02.14-.03.22-.03L5.5 11l1.47-4.41C7.32 5.53 8.25 5 9.27 5h5.46c1.02 0 1.95.53 2.3 1.59L18.5 11h.42z"/></svg>
-        <div><h1 style="font-size: 1.4rem;">SUIVI MEGANE E-TECH <span style="font-size: 0.7rem; opacity: 0.6;">V9.8.6</span></h1></div>
+        <div><h1 style="font-size: 1.4rem;">SUIVI MEGANE E-TECH <span style="font-size: 0.7rem; opacity: 0.6;">V9.8.8</span></h1></div>
         <div class="header-controls">
             <span class="save-mention">⚠️ Données stockées localement. Exportez pour sauvegarder.</span>
             <div style="display: flex; gap: 10px; margin-bottom: 5px;">
@@ -523,21 +523,42 @@
     function importJSON(e) {
         const reader = new FileReader();
         reader.onload = (ev) => {
-            const imported = JSON.parse(ev.target.result);
-            if(imported.data) { 
-                dataStore = imported.data; 
-                esTarifs = imported.es || {};
-                if(imported.last_export) localStorage.setItem('last_exp', imported.last_export);
-            } else { 
-                dataStore = imported; 
+            try {
+                // Nettoyage radical pour Chrome Android : on vire les caractères invisibles
+                const cleanText = ev.target.result.trim();
+                const imported = JSON.parse(cleanText);
+                
+                if (imported && typeof imported === 'object') {
+                    // Si format simple (ancien)
+                    if (Array.isArray(imported)) {
+                        dataStore = imported;
+                        esTarifs = {};
+                    } 
+                    // Si format complet (nouveau)
+                    else if (imported.data) {
+                        dataStore = imported.data || [];
+                        esTarifs = imported.es || {};
+                        if (imported.last_export) localStorage.setItem('last_exp', imported.last_export);
+                        if (imported.last_import) localStorage.setItem('last_imp', imported.last_import);
+                    }
+                    
+                    const nowImport = new Date().toLocaleString('fr-FR');
+                    localStorage.setItem('last_imp', nowImport);
+                    localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore));
+                    localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
+                    
+                    updateDisplayLastSync(); 
+                    renderESTarifs(); 
+                    renderAll();
+                    alert("Succès : " + dataStore.length + " entrées chargées.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Erreur Chrome Android : Le fichier semble corrompu ou mal formaté.");
             }
-            const nowImport = new Date().toLocaleString('fr-FR');
-            localStorage.setItem('last_imp', nowImport);
-            localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore));
-            localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
-            updateDisplayLastSync(); renderESTarifs(); renderAll();
         };
-        reader.readAsText(e.target.files[0]);
+        // Forcer l'encodage UTF-8 pour éviter les bugs mobile
+        reader.readAsText(e.target.files[0], 'UTF-8');
     }
 </script>
 </body>
