@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi Megane E-Tech - Tempo vs ES [V9.8.8]</title>
+    <title>Suivi Megane E-Tech - Tempo vs ES [V9.9.11]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
@@ -88,6 +88,14 @@
         .es-grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 10px; }
         .es-color-block { background: rgba(255,255,255,0.5); padding: 10px; border-radius: 5px; border: 1px solid #ffcc80; }
         .es-color-block h4 { font-size: 0.8rem; margin-bottom: 8px; text-align: center; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 10px; }
+        .stat-box { border: 1px solid #ddd; border-radius: 8px; padding: 15px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed rgba(0,0,0,0.1); font-size: 0.9rem; }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-val { font-weight: bold; color: var(--dark); }
+        
+        .confirm-msg { color: var(--green); font-size: 0.7rem; font-weight: bold; text-align: center; height: 15px; margin-bottom: 2px; }
     </style>
 </head>
 <body>
@@ -95,7 +103,7 @@
 <div class="container" id="top">
     <div class="header">
         <svg class="car-icon" viewBox="0 0 24 24"><path d="M18.92 11c.08 0 .15.01.22.03C20.25 11.41 21 12.4 21 13.5V19c0 .55-.45 1-1 1h-1c-.55 0-1-.45-1-1v-1H6v1c0 .55-.45 1-1 1H4c-.55 0-1-.45-1-1v-5.5c0-1.1.75-2.09 1.86-2.47.07-.02.14-.03.22-.03L5.5 11l1.47-4.41C7.32 5.53 8.25 5 9.27 5h5.46c1.02 0 1.95.53 2.3 1.59L18.5 11h.42z"/></svg>
-        <div><h1 style="font-size: 1.4rem;">SUIVI MEGANE E-TECH <span style="font-size: 0.7rem; opacity: 0.6;">V9.8.8</span></h1></div>
+        <div><h1 style="font-size: 1.4rem;">SUIVI MEGANE E-TECH <span style="font-size: 0.7rem; opacity: 0.6;">V9.9.11</span></h1></div>
         <div class="header-controls">
             <span class="save-mention">⚠️ Données stockées localement. Exportez pour sauvegarder.</span>
             <div style="display: flex; gap: 10px; margin-bottom: 5px;">
@@ -132,7 +140,8 @@
 
     <div class="tabs">
         <button class="tab active" onclick="switchTab(event, 'tab-data')">Saisie & Historique</button>
-        <button class="tab" onclick="switchTab(event, 'tab-charts')">Graphiques & Comparaisons</button>
+        <button class="tab" onclick="switchTab(event, 'tab-charts')">Graphiques Comparatifs</button>
+        <button class="tab" onclick="switchTab(event, 'tab-stats')">Bilan & Moyennes</button>
     </div>
 
     <div id="tab-data" class="tab-content active">
@@ -195,7 +204,10 @@
                 <div><label>Durée</label><input type="text" id="in-duration" placeholder="02:30"></div>
                 <div><label>kWh</label><input type="number" id="in-kwh" step="0.01"></div>
                 <div><label>Km</label><input type="number" id="in-km"></div>
-                <button class="btn btn-add" id="main-btn" onclick="saveEntry()">Enregistrer</button>
+                <div style="display: flex; flex-direction: column;">
+                    <div id="save-confirm" class="confirm-msg"></div>
+                    <button class="btn btn-add" id="main-btn" onclick="saveEntry()">Enregistrer</button>
+                </div>
                 <button class="btn btn-delete hidden" id="cancel-btn" onclick="resetForm()">Annuler</button>
             </div>
         </div>
@@ -216,7 +228,18 @@
             <div id="year-checkbox-container" class="year-selector"></div>
         </div>
         <div class="chart-wrapper"><canvas id="chart-kwh"></canvas></div>
+        <div class="chart-wrapper"><canvas id="chart-count"></canvas></div>
         <div class="chart-wrapper"><canvas id="chart-cost"></canvas></div>
+    </div>
+    
+    <div id="tab-stats" class="tab-content">
+        <div class="box box-stats">
+            <span class="box-title">📊 Évolution du compteur Kilométrique</span>
+            <div class="chart-wrapper" style="height: 350px;"><canvas id="chart-km-history"></canvas></div>
+            
+            <span class="box-title">📈 Bilans Annuels & Moyennes</span>
+            <div id="stats-year-container" class="stats-grid"></div>
+        </div>
     </div>
 </div>
 
@@ -229,63 +252,45 @@
     
     let dataStore = JSON.parse(localStorage.getItem('ev_data_v9_4') || '[]');
     let esTarifs = JSON.parse(localStorage.getItem('es_tarifs') || '{}');
-    let currentFilterColor = null; let editIndex = -1; let chartKwh = null, chartCost = null;
+    let currentFilterColor = null; let editIndex = -1; 
+    let chartKwh = null, chartCost = null, chartCount = null, chartKm = null;
 
     window.onload = () => {
         document.getElementById('in-date').valueAsDate = new Date();
-        updateDisplayLastSync();
-        renderESTarifs();
-        checkTempoAPI();
-        renderAll();
+        updateDisplayLastSync(); renderESTarifs(); checkTempoAPI(); renderAll();
     };
 
-    function toggleESPanel() {
-        document.getElementById('es-panel').classList.toggle('hidden');
-    }
+    function toggleESPanel() { document.getElementById('es-panel').classList.toggle('hidden'); }
 
     function saveESTarif() {
         const year = document.getElementById('es-year').value;
-        if(!year) return alert("Veuillez saisir l'année.");
+        if(!year) return alert("Saisir année");
         esTarifs[year] = {
             'Bleu': { HP: parseFloat(document.getElementById('es-bleu-hp').value) || 0, HC: parseFloat(document.getElementById('es-bleu-hc').value) || 0 },
             'Blanc': { HP: parseFloat(document.getElementById('es-blanc-hp').value) || 0, HC: parseFloat(document.getElementById('es-blanc-hc').value) || 0 },
             'Rouge': { HP: parseFloat(document.getElementById('es-rouge-hp').value) || 0, HC: parseFloat(document.getElementById('es-rouge-hc').value) || 0 }
         };
-        localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
-        renderESTarifs();
-        renderAll();
-        if(chartCost) updateCharts();
-        alert("Tarifs enregistrés pour l'année " + year);
+        localStorage.setItem('es_tarifs', JSON.stringify(esTarifs)); renderESTarifs(); renderAll(); alert("Ok");
     }
 
     function renderESTarifs() {
         const list = document.getElementById('es-list');
-        list.innerHTML = "<strong>Tarifs ES par année :</strong><br>";
-        for(let y in esTarifs) {
-            list.innerHTML += `Année ${y} | 
-                <span style="color:orange; cursor:pointer; font-weight:bold" onclick="editESTarif('${y}')">Modifier</span> - 
-                <span style="color:red; cursor:pointer; font-weight:bold" onclick="deleteESTarif('${y}')">Supprimer</span><br>`;
-        }
+        list.innerHTML = "<strong>Tarifs ES :</strong><br>";
+        for(let y in esTarifs) list.innerHTML += `${y} | <span style="color:orange;cursor:pointer" onclick="editESTarif('${y}')">Mod</span> - <span style="color:red;cursor:pointer" onclick="deleteESTarif('${y}')">Supp</span><br>`;
     }
 
     function editESTarif(y) {
-        const t = esTarifs[y];
-        document.getElementById('es-year').value = y;
-        document.getElementById('es-bleu-hp').value = t['Bleu'].HP;
-        document.getElementById('es-bleu-hc').value = t['Bleu'].HC;
-        document.getElementById('es-blanc-hp').value = t['Blanc'].HP;
-        document.getElementById('es-blanc-hc').value = t['Blanc'].HC;
-        document.getElementById('es-rouge-hp').value = t['Rouge'].HP;
-        document.getElementById('es-rouge-hc').value = t['Rouge'].HC;
-        document.getElementById('btn-save-es').innerText = "Mettre à jour les tarifs ES pour " + y;
-        window.scrollTo({top: 0, behavior: 'smooth'});
+        const t = esTarifs[y]; document.getElementById('es-year').value = y;
+        document.getElementById('es-bleu-hp').value = t['Bleu'].HP; document.getElementById('es-bleu-hc').value = t['Bleu'].HC;
+        document.getElementById('es-blanc-hp').value = t['Blanc'].HP; document.getElementById('es-blanc-hc').value = t['Blanc'].HC;
+        document.getElementById('es-rouge-hp').value = t['Rouge'].HP; document.getElementById('es-rouge-hc').value = t['Rouge'].HC;
     }
 
-    function deleteESTarif(y) { if(confirm(`Supprimer les tarifs ES pour l'année ${y} ?`)) { delete esTarifs[y]; localStorage.setItem('es_tarifs', JSON.stringify(esTarifs)); renderESTarifs(); renderAll(); } }
+    function deleteESTarif(y) { if(confirm("Supprimer ?")) { delete esTarifs[y]; localStorage.setItem('es_tarifs', JSON.stringify(esTarifs)); renderESTarifs(); renderAll(); } }
 
     function updateDisplayLastSync() {
-        document.getElementById('last-export').innerText = "Dernier export : " + (localStorage.getItem('last_exp') || "Jamais");
-        document.getElementById('last-import').innerText = "Dernier import : " + (localStorage.getItem('last_imp') || "Jamais");
+        document.getElementById('last-export').innerText = "Export : " + (localStorage.getItem('last_exp') || "Jamais");
+        document.getElementById('last-import').innerText = "Import : " + (localStorage.getItem('last_imp') || "Jamais");
     }
 
     window.onscroll = () => { document.getElementById('btn-top').style.display = window.scrollY > 300 ? 'block' : 'none'; };
@@ -298,62 +303,53 @@
             const res = await fetch(`https://www.api-couleur-tempo.fr/api/jourTempo/${d}`);
             const json = await res.json();
             const codes = { 1: "Bleu", 2: "Blanc", 3: "Rouge" };
-            const textColors = { "Bleu": "#007bff", "Blanc": "#7f8c8d", "Rouge": "#ff4757" };
             if (json.codeJour) {
-                const colorLabel = codes[json.codeJour];
-                document.getElementById('in-tempo').value = colorLabel;
-                statusDiv.innerText = "Jour " + colorLabel;
-                statusDiv.style.color = textColors[colorLabel];
+                const color = codes[json.codeJour];
+                document.getElementById('in-tempo').value = color;
+                statusDiv.innerText = "Jour " + color;
+                statusDiv.style.color = color === "Bleu" ? "#007bff" : (color === "Rouge" ? "#ff4757" : "#7f8c8d");
             }
         } catch (e) { statusDiv.innerText = ""; }
     }
 
     function renderAll() {
-        updateCards(); renderTable();
-        document.querySelectorAll('.badge-filter').forEach(b => b.style.display = 'none');
-        if(currentFilterColor) document.getElementById('filter-'+currentFilterColor).style.display = 'block';
+        updateCards(); renderTable(); renderGlobalStats();
         const isFiltered = currentFilterColor || document.getElementById('stats-start').value;
         document.getElementById('btn-reset-filters').style.display = isFiltered ? 'inline-block' : 'none';
     }
 
     function updateCards() {
-        const start = document.getElementById('stats-start').value;
-        const end = document.getElementById('stats-end').value;
+        const start = document.getElementById('stats-start').value, end = document.getElementById('stats-end').value;
         let source = dataStore;
         if(start && end) source = dataStore.filter(d => d.date >= start && d.date <= end);
         
         let s = { Bleu: 0, Blanc: 0, Rouge: 0, k: 0, c: 0, cES: 0 };
+        let costES = { Bleu: 0, Blanc: 0, Rouge: 0 }; 
         let n = { Bleu: 0, Blanc: 0, Rouge: 0, total: 0 };
-        let esSum = { Bleu: 0, Blanc: 0, Rouge: 0 };
 
         source.forEach(d => {
-            const year = d.date.substring(0,4);
-            s[d.tempo] += d.kwh;
-            n[d.tempo]++;
-            n.total++;
-            s.k += d.kwh;
+            const y = d.date.substring(0,4);
+            s[d.tempo] += d.kwh; 
+            n[d.tempo]++; 
+            n.total++; 
+            s.k += d.kwh; 
             s.c += d.cost;
-            if(esTarifs[year] && esTarifs[year][d.tempo]) {
-                let costItem = d.kwh * esTarifs[year][d.tempo][d.type];
-                esSum[d.tempo] += costItem;
-                s.cES += costItem;
+            if(esTarifs[y] && esTarifs[y][d.tempo]) {
+                const amount = (d.kwh * esTarifs[y][d.tempo][d.type]);
+                s.cES += amount;
+                costES[d.tempo] += amount;
             }
         });
 
         ['Bleu','Blanc','Rouge'].forEach(c => {
-            document.getElementById(`sum-${c.toLowerCase()}`).innerText = s[c].toFixed(1) + " kWh";
-            document.getElementById(`cost-${c.toLowerCase()}`).innerText = (source.filter(d=>d.tempo===c).reduce((a,b)=>a+b.cost,0)).toFixed(2) + " €";
-            document.getElementById(`cost-es-${c.toLowerCase()}`).innerText = "ES: " + esSum[c].toFixed(2) + " €";
-            document.getElementById(`count-${c.toLowerCase()}`).innerText = n[c] + " charge(s)";
-            
-            let lastYear = Object.keys(esTarifs).sort().pop();
-            let esHC = (lastYear && esTarifs[lastYear][c]) ? esTarifs[lastYear][c].HC : "---";
-            let esHP = (lastYear && esTarifs[lastYear][c]) ? esTarifs[lastYear][c].HP : "---";
-            
-            document.getElementById(`tarifs-${c.toLowerCase()}`).innerHTML = `
-                <div class="tarif-col">TEMPO<br>HC: ${TARIFS[c].HC}<br>HP: ${TARIFS[c].HP}</div>
-                <div class="tarif-col">ES<br>HC: ${esHC}<br>HP: ${esHP}</div>
-            `;
+            const slug = c.toLowerCase();
+            document.getElementById(`sum-${slug}`).innerText = s[c].toFixed(1) + " kWh";
+            document.getElementById(`cost-${slug}`).innerText = (source.filter(d=>d.tempo===c).reduce((a,b)=>a+b.cost,0)).toFixed(2) + " €";
+            document.getElementById(`cost-es-${slug}`).innerText = "ES: " + costES[c].toFixed(2) + " €";
+            document.getElementById(`count-${slug}`).innerText = n[c] + " charge(s)";
+            let lastY = Object.keys(esTarifs).sort().pop();
+            let esHC = (lastY && esTarifs[lastY][c]) ? esTarifs[lastY][c].HC : "---", esHP = (lastY && esTarifs[lastY][c]) ? esTarifs[lastY][c].HP : "---";
+            document.getElementById(`tarifs-${slug}`).innerHTML = `<div class="tarif-col">TEMPO<br>${TARIFS[c].HC}/${TARIFS[c].HP}</div><div class="tarif-col">ES<br>${esHC}/${esHP}</div>`;
         });
         document.getElementById('sum-total').innerText = s.k.toFixed(1) + " kWh";
         document.getElementById('cost-total').innerText = s.c.toFixed(2) + " €";
@@ -363,72 +359,91 @@
 
     function renderTable() {
         const tbody = document.getElementById('table-body'); tbody.innerHTML = "";
-        const start = document.getElementById('stats-start').value;
-        const end = document.getElementById('stats-end').value;
+        const start = document.getElementById('stats-start').value, end = document.getElementById('stats-end').value;
         let displayData = [...dataStore];
         if(start && end) displayData = displayData.filter(d => d.date >= start && d.date <= end);
         if(currentFilterColor) displayData = displayData.filter(d => d.tempo === currentFilterColor);
         displayData.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach((item) => {
             const realIdx = dataStore.indexOf(item);
-            tbody.innerHTML += `<tr><td>${item.date}</td><td><span class="badge badge-${item.tempo.toLowerCase()}">${item.tempo} ${item.type}</span></td><td>${item.start}</td><td><b>${item.kwh.toFixed(1)}</b></td><td>${item.km || '-'}</td><td>${item.cost.toFixed(2)}€</td><td><button class="btn btn-edit" onclick="editItem(${realIdx})">Modifier</button><button class="btn btn-delete" onclick="deleteItem(${realIdx})">X</button></td></tr>`;
+            tbody.innerHTML += `<tr><td>${item.date}</td><td><span class="badge badge-${item.tempo.toLowerCase()}">${item.tempo} ${item.type}</span></td><td>${item.start}</td><td><b>${item.kwh.toFixed(1)}</b></td><td>${item.km || '-'}</td><td>${item.cost.toFixed(2)}€</td><td><button class="btn btn-edit" onclick="editItem(${realIdx})">Mod</button><button class="btn btn-delete" onclick="deleteItem(${realIdx})">X</button></td></tr>`;
+        });
+    }
+
+    function renderGlobalStats() {
+        const container = document.getElementById('stats-year-container');
+        if(!container) return; container.innerHTML = "";
+        const years = [...new Set(dataStore.map(d => d.date.substring(0,4)))].sort();
+        
+        const kmEntries = [...dataStore].filter(d => d.km !== null && d.km !== undefined && d.km !== "" && parseFloat(d.km) > 0).sort((a,b) => new Date(a.date) - new Date(b.date));
+        if(chartKm) chartKm.destroy();
+        if(kmEntries.length > 0) {
+            const minKm = Math.min(...kmEntries.map(d => parseFloat(d.km)));
+            chartKm = new Chart(document.getElementById('chart-km-history').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: kmEntries.map(d => d.date),
+                    datasets: [{ label: 'Km Compteur', data: kmEntries.map(d => parseFloat(d.km)), borderColor: '#2c3e50', backgroundColor: 'rgba(44, 62, 80, 0.1)', fill: true, tension: 0.2, pointRadius: 6, pointBackgroundColor: '#2c3e50' }]
+                },
+                plugins: [ChartDataLabels],
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { min: Math.floor(minKm * 0.995) } },
+                    plugins: { 
+                        datalabels: { display: true, align: 'top', formatter: (v) => v + " km", font: { size: 10, weight: 'bold' }, color: '#2c3e50', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 3, padding: 2 } 
+                    }
+                }
+            });
+        }
+
+        const reversedYears = [...years].reverse();
+        reversedYears.forEach(y => {
+            const yearData = dataStore.filter(d => d.date.startsWith(y)).sort((a,b) => new Date(a.date) - new Date(b.date));
+            const totalKwh = yearData.reduce((a,b) => a + b.kwh, 0);
+            const totalCost = yearData.reduce((a,b) => a + b.cost, 0);
+            let totalCostES = 0;
+            yearData.forEach(d => { if(esTarifs[y] && esTarifs[y][d.tempo]) totalCostES += (d.kwh * esTarifs[y][d.tempo][d.type]); });
+            const kmY = yearData.filter(d => d.km && parseFloat(d.km) > 0);
+            let dist = 0, conso100 = "N/A";
+            if(kmY.length >= 2) { dist = parseFloat(kmY[kmY.length - 1].km) - parseFloat(kmY[0].km); conso100 = dist > 0 ? ((totalKwh / dist) * 100).toFixed(1) + " kWh/100" : "N/A"; }
+            const months = [...new Set(yearData.map(d => d.date.substring(5,7)))].length || 1;
+            const yearColor = COLORS[years.indexOf(y) % COLORS.length];
+            container.innerHTML += `<div class="stat-box" style="background-color: ${yearColor}15; border-color: ${yearColor}50;"><h3 style="border-bottom:2px solid ${yearColor}; color: ${yearColor}; margin-bottom:10px; padding-bottom:5px;">Année ${y}</h3><div class="stat-row"><span>Énergie :</span><span class="stat-val">${totalKwh.toFixed(1)} kWh</span></div><div class="stat-row"><span>Coût Tempo :</span><span class="stat-val">${totalCost.toFixed(2)} €</span></div><div class="stat-row"><span>Coût ES estimé :</span><span class="stat-val" style="font-style:italic;">${totalCostES > 0 ? totalCostES.toFixed(2) + ' €' : '---'}</span></div><div class="stat-row"><span>Distance :</span><span class="stat-val">${dist > 0 ? dist + ' km' : 'N/A'}</span></div><div class="stat-row" style="color:var(--green)"><span>Conso moy. :</span><span class="stat-val">${conso100}</span></div><div class="stat-row" style="margin-top:5px; padding-top:5px; border-top:1px solid rgba(0,0,0,0.1);"><span>Moyenne/mois :</span><span class="stat-val">${(totalCost/months).toFixed(2)} €</span></div></div>`;
         });
     }
 
     function handleCsvFile() {
-        const file = document.getElementById('csvFileInput').files[0];
-        if(!file) return alert("Svp, choisissez un fichier CSV");
+        const file = document.getElementById('csvFileInput').files[0]; if(!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
-            const text = e.target.result;
-            const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
-            const separator = text.includes(';') ? ';' : ',';
-            let headerIdx = -1;
-            for(let i=0; i<lines.length; i++) {
-                if(lines[i].toUpperCase().includes("DATE") && lines[i].toUpperCase().includes("KWH")) {
-                    headerIdx = i; break;
-                }
-            }
-            if(headerIdx === -1) return alert("Structure non reconnue.");
-            const rawHeaders = lines[headerIdx].split(separator).map(h => h.trim());
-            const idxDate = rawHeaders.findIndex(h => h.toUpperCase() === "DATE");
-            const idxTempo = rawHeaders.findIndex(h => h.toUpperCase() === "TEMPO");
-            const idxStart = rawHeaders.findIndex(h => h.toUpperCase() === "DÉBUT");
-            const idxKwh = rawHeaders.findIndex(h => h.toUpperCase().includes("KWH"));
-            const idxKm = rawHeaders.findIndex(h => h.toUpperCase().includes("KM"));
-            let addedCount = 0; let duplicateCount = 0;
-            for(let i = headerIdx + 1; i < lines.length; i++) {
-                const c = lines[i].split(separator).map(x => x.trim().replace(/"/g, ''));
-                if (c.length < rawHeaders.length || !c[idxDate]) continue;
-                const rawDate = c[idxDate].split('/');
-                if(rawDate.length !== 3) continue;
-                const date = `${rawDate[2]}-${rawDate[1].padStart(2,'0')}-${rawDate[0].padStart(2,'0')}`;
-                const kwh = parseFloat(c[idxKwh].replace(',', '.').replace(' ', '').replace('€', '')) || 0;
-                if(kwh <= 0) continue;
-                const start = idxStart !== -1 ? c[idxStart] : "22:00";
-                const tempo = (idxTempo !== -1 && c[idxTempo]) ? (c[idxTempo].charAt(0).toUpperCase() + c[idxTempo].slice(1).toLowerCase()) : "Bleu";
-                const type = (start >= "06:00" && start < "22:00") ? "HP" : "HC";
-                const km = idxKm !== -1 ? c[idxKm] : "";
-                if(!dataStore.some(x => x.date === date && Math.abs(x.kwh - kwh) < 0.01)) {
-                    dataStore.push({ date, tempo, type, start, kwh, km, cost: kwh * (TARIFS[tempo] ? TARIFS[tempo][type] : 0.12), duration: "00:00" });
-                    addedCount++;
-                } else { duplicateCount++; }
-            }
+            const text = e.target.result; const lines = text.split(/\r?\n/).filter(l => l.trim() !== "");
+            const sep = text.includes(';') ? ';' : ',';
+            let hIdx = lines.findIndex(l => l.toUpperCase().includes("DATE") && l.toUpperCase().includes("KWH"));
+            if(hIdx === -1) return;
+            const head = lines[hIdx].split(sep).map(h => h.trim().toUpperCase());
+            const iD = head.indexOf("DATE"), iT = head.indexOf("TEMPO"), iS = head.indexOf("DÉBUT"), iK = head.findIndex(h => h.includes("KWH")), iKm = head.findIndex(h => h.includes("KM"));
+            lines.slice(hIdx+1).forEach(l => {
+                const c = l.split(sep).map(x => x.trim().replace(/"/g, '')); if(!c[iD]) return;
+                const rD = c[iD].split('/'); if(rD.length !== 3) return;
+                const d = `${rD[2]}-${rD[1].padStart(2,'0')}-${rD[0].padStart(2,'0')}`;
+                const kwh = parseFloat(c[iK].replace(',','.')) || 0; if(kwh <= 0) return;
+                const t = (iT !== -1 && c[iT]) ? (c[iT].charAt(0).toUpperCase() + c[iT].slice(1).toLowerCase()) : "Bleu";
+                const start = iS !== -1 ? c[iS] : "22:00", type = (start >= "06:00" && start < "22:00") ? "HP" : "HC";
+                if(!dataStore.some(x => x.date === d && Math.abs(x.kwh - kwh) < 0.01)) { dataStore.push({ date: d, tempo: t, type, start, kwh, km: iKm !== -1 ? c[iKm] : "", cost: kwh * (TARIFS[t][type]), duration: "00:00" }); }
+            });
             localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore)); renderAll();
-            alert(`Import : ${addedCount} ajoutés, ${duplicateCount} doublons.`);
         };
         reader.readAsText(file);
     }
 
-    function filterTableByTempo(color) { currentFilterColor = color; renderAll(); }
-    function resetAllFilters() { currentFilterColor = null; document.getElementById('stats-start').value = ""; document.getElementById('stats-end').value = ""; renderAll(); }
-    function calcPeriodStats() { renderAll(); }
-
     function saveEntry() {
-        const kwh = parseFloat(document.getElementById('in-kwh').value) || 0;
-        const tempo = document.getElementById('in-tempo').value;
-        const type = document.getElementById('in-type').value;
-        const entry = { date: document.getElementById('in-date').value, tempo, type, start: document.getElementById('in-start').value || "00:00", duration: document.getElementById('in-duration').value || "00:00", kwh, km: document.getElementById('in-km').value, cost: kwh * TARIFS[tempo][type] };
-        if(editIndex > -1) dataStore[editIndex] = entry; else dataStore.push(entry);
+        const date = document.getElementById('in-date').value, kwh = parseFloat(document.getElementById('in-kwh').value) || 0;
+        const t = document.getElementById('in-tempo').value, ty = document.getElementById('in-type').value;
+        const start = document.getElementById('in-start').value || "00:00", km = document.getElementById('in-km').value;
+        const msgZone = document.getElementById('save-confirm');
+        if(editIndex === -1 && dataStore.some(d => d.date === date && d.start === start && d.kwh === kwh)) return alert("⚠️ Doublon détecté.");
+        const e = { date, tempo: t, type: ty, start, duration: document.getElementById('in-duration').value || "00:00", kwh, km, cost: kwh * TARIFS[t][ty] };
+        if(editIndex > -1) { dataStore[editIndex] = e; msgZone.innerText = "✅ Ligne modifiée !"; } else { dataStore.push(e); msgZone.innerText = "✅ Ligne ajoutée !"; }
+        setTimeout(() => { msgZone.innerText = ""; }, 3000);
         localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore)); resetForm(); renderAll();
     }
 
@@ -436,128 +451,86 @@
         editIndex = idx; const d = dataStore[idx];
         document.getElementById('in-date').value = d.date; document.getElementById('in-tempo').value = d.tempo;
         document.getElementById('in-type').value = d.type; document.getElementById('in-start').value = d.start;
-        document.getElementById('in-duration').value = d.duration; document.getElementById('in-kwh').value = d.kwh;
-        document.getElementById('in-km').value = d.km; document.getElementById('main-btn').innerText = "Mettre à jour";
-        document.getElementById('cancel-btn').classList.remove('hidden');
-        checkTempoAPI();
+        document.getElementById('in-kwh').value = d.kwh; document.getElementById('in-km').value = d.km;
+        document.getElementById('main-btn').innerText = "MAJ"; document.getElementById('cancel-btn').classList.remove('hidden');
     }
 
     function resetForm() { editIndex = -1; document.getElementById('main-btn').innerText = "Enregistrer"; document.getElementById('cancel-btn').classList.add('hidden'); }
     function deleteItem(idx) { if(confirm("Supprimer ?")) { dataStore.splice(idx,1); localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore)); renderAll(); } }
+    function filterTableByTempo(c) { currentFilterColor = c; renderAll(); }
+    function resetAllFilters() { currentFilterColor = null; document.getElementById('stats-start').value = ""; document.getElementById('stats-end').value = ""; renderAll(); }
+    function calcPeriodStats() { renderAll(); }
 
     function switchTab(evt, id) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.getElementById(id).classList.add('active'); evt.currentTarget.classList.add('active');
         if(id === 'tab-charts') initChartFilters();
+        if(id === 'tab-stats') renderGlobalStats();
     }
 
     function initChartFilters() {
         const years = [...new Set(dataStore.map(d => d.date.substring(0,4)))].sort();
-        const container = document.getElementById('year-checkbox-container');
-        if(!container) return;
+        const container = document.getElementById('year-checkbox-container'); if(!container) return;
         container.innerHTML = "";
-        years.forEach((y, index) => {
-            const isChecked = index === years.length - 1 ? 'checked' : ''; 
-            container.innerHTML += `<label class="year-checkbox"><input type="checkbox" value="${y}" ${isChecked} onchange="updateCharts()"> ${y}</label>`;
-        });
+        years.forEach((y, i) => { container.innerHTML += `<label class="year-checkbox"><input type="checkbox" value="${y}" ${i === years.length-1?'checked':''} onchange="updateCharts()"> ${y}</label>`; });
         updateCharts();
     }
 
     function updateCharts() {
-        const selectedYears = Array.from(document.querySelectorAll('#year-checkbox-container input:checked')).map(cb => cb.value);
-        if(selectedYears.length === 0) return;
-        const datasetsKwh = []; const datasetsCost = [];
-
-        selectedYears.forEach((year, i) => {
-            let dataK = Array(12).fill(0), dataC = Array(12).fill(0), dataES = Array(12).fill(0);
-            dataStore.filter(d => d.date.startsWith(year)).forEach(d => {
-                let mIdx = parseInt(d.date.substring(5,7)) - 1;
-                dataK[mIdx] += d.kwh;
-                dataC[mIdx] += d.cost;
-                if(esTarifs[year] && esTarifs[year][d.tempo]) {
-                    dataES[mIdx] += d.kwh * esTarifs[year][d.tempo][d.type];
-                }
+        const selY = Array.from(document.querySelectorAll('#year-checkbox-container input:checked')).map(cb => cb.value);
+        const allY = [...new Set(dataStore.map(d => d.date.substring(0,4)))].sort();
+        if(selY.length === 0) return;
+        const dsK = [], dsC = [], dsN = [];
+        selY.forEach((y) => {
+            let dK = Array(12).fill(0), dC = Array(12).fill(0), dES = Array(12).fill(0), dN = Array(12).fill(0);
+            dataStore.filter(d => d.date.startsWith(y)).forEach(d => {
+                let m = parseInt(d.date.substring(5,7)) - 1;
+                dK[m] += d.kwh; dC[m] += d.cost; dN[m] += 1;
+                if(esTarifs[y] && esTarifs[y][d.tempo]) dES[m] += (d.kwh * esTarifs[y][d.tempo][d.type]);
             });
-
-            const color = COLORS[i % COLORS.length];
-            datasetsKwh.push({ label: `kWh ${year}`, data: dataK, backgroundColor: color, borderColor: color, borderWidth: 1 });
-            datasetsCost.push({ label: `Coût Tempo ${year}`, data: dataC, borderColor: color, backgroundColor: color + '33', fill: false, tension: 0.3 });
-            if(esTarifs[year]) datasetsCost.push({ label: `Coût ES ${year}`, data: dataES, borderColor: color, borderDash: [5, 5], backgroundColor: 'transparent', fill: false, tension: 0.3 });
+            const color = COLORS[allY.indexOf(y) % COLORS.length];
+            dsK.push({ label: `kWh ${y}`, data: dK, backgroundColor: color });
+            dsN.push({ label: `Charges ${y}`, data: dN, borderColor: color, tension: 0.4 });
+            dsC.push({ label: `Tempo ${y}`, data: dC, borderColor: color });
+            if(esTarifs[y]) dsC.push({ label: `ES ${y}`, data: dES, borderColor: color, borderDash: [5, 5] });
         });
-
-        if(chartKwh) chartKwh.destroy();
-        if(chartCost) chartCost.destroy();
-
-        const commonOptions = (title) => ({
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                title: { display: true, text: title, font: { size: 16 } },
-                datalabels: { display: true, align: 'top', backgroundColor: '#fff', borderRadius: 4, color: '#000', font: { weight: 'bold', size: 10 }, padding: 4, formatter: (v) => v > 0 ? v.toFixed(1) : '' }
-            }
+        if(chartKwh) chartKwh.destroy(); if(chartCount) chartCount.destroy(); if(chartCost) chartCost.destroy();
+        const opt = (t) => ({ 
+            responsive: true, maintainAspectRatio: false, 
+            plugins: { 
+                title: { display: true, text: t }, 
+                datalabels: { 
+                    display: true, align: 'top', font: { weight: 'bold' }, 
+                    formatter: (v) => v > 0 ? Math.round(v) : ''
+                } 
+            } 
         });
-
-        chartKwh = new Chart(document.getElementById('chart-kwh').getContext('2d'), { type:'bar', data:{labels:MOIS_FR, datasets:datasetsKwh}, plugins:[ChartDataLabels], options:commonOptions('Consommation par mois (kWh)') });
-        chartCost = new Chart(document.getElementById('chart-cost').getContext('2d'), { type:'line', data:{labels:MOIS_FR, datasets:datasetsCost}, plugins:[ChartDataLabels], options:commonOptions('Comparatif Coût Tempo vs ES (€)') });
+        chartKwh = new Chart(document.getElementById('chart-kwh').getContext('2d'), { type:'bar', data:{labels:MOIS_FR, datasets:dsK}, plugins:[ChartDataLabels], options:opt('kWh / mois') });
+        chartCount = new Chart(document.getElementById('chart-count').getContext('2d'), { type:'line', data:{labels:MOIS_FR, datasets:dsN}, plugins:[ChartDataLabels], options:opt('Charges / mois') });
+        chartCost = new Chart(document.getElementById('chart-cost').getContext('2d'), { type:'line', data:{labels:MOIS_FR, datasets:dsC}, plugins:[ChartDataLabels], options:opt('Coûts Tempo vs ES (€)') });
     }
 
     function exportJSON() {
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('fr-FR').split('/').join('-');
-        const fullDate = now.toLocaleString('fr-FR');
-        localStorage.setItem('last_exp', fullDate);
-        
-        const exportObj = {
-            data: dataStore, 
-            es: esTarifs,
-            last_export: fullDate,
-            last_import: localStorage.getItem('last_imp') || "Jamais"
-        };
-        
-        const blob = new Blob([JSON.stringify(exportObj)], {type: 'application/json'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `suivi-megane-complet_${dateStr}.json`;
-        a.click();
-        updateDisplayLastSync();
+        const fullD = new Date().toLocaleString('fr-FR'); localStorage.setItem('last_exp', fullD);
+        const obj = { data: dataStore, es: esTarifs, last_export: fullD, last_import: localStorage.getItem('last_imp') || "Jamais" };
+        const blob = new Blob([JSON.stringify(obj)], {type: 'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `suivi-megane-complet.json`;
+        a.click(); updateDisplayLastSync();
     }
 
     function importJSON(e) {
         const reader = new FileReader();
         reader.onload = (ev) => {
             try {
-                // Nettoyage radical pour Chrome Android : on vire les caractères invisibles
-                const cleanText = ev.target.result.trim();
-                const imported = JSON.parse(cleanText);
-                
-                if (imported && typeof imported === 'object') {
-                    // Si format simple (ancien)
-                    if (Array.isArray(imported)) {
-                        dataStore = imported;
-                        esTarifs = {};
-                    } 
-                    // Si format complet (nouveau)
-                    else if (imported.data) {
-                        dataStore = imported.data || [];
-                        esTarifs = imported.es || {};
-                        if (imported.last_export) localStorage.setItem('last_exp', imported.last_export);
-                        if (imported.last_import) localStorage.setItem('last_imp', imported.last_import);
-                    }
-                    
-                    const nowImport = new Date().toLocaleString('fr-FR');
-                    localStorage.setItem('last_imp', nowImport);
-                    localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore));
-                    localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
-                    
-                    updateDisplayLastSync(); 
-                    renderESTarifs(); 
-                    renderAll();
-                    alert("Succès : " + dataStore.length + " entrées chargées.");
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Erreur Chrome Android : Le fichier semble corrompu ou mal formaté.");
-            }
+                const imp = JSON.parse(ev.target.result);
+                if (imp.data) { dataStore = imp.data; esTarifs = imp.es || {}; } else { dataStore = imp; }
+                localStorage.setItem('last_imp', new Date().toLocaleString('fr-FR'));
+                localStorage.setItem('ev_data_v9_4', JSON.stringify(dataStore));
+                localStorage.setItem('es_tarifs', JSON.stringify(esTarifs));
+                updateDisplayLastSync(); renderESTarifs(); renderAll(); alert("Ok");
+            } catch (err) { alert("Erreur"); }
         };
-        // Forcer l'encodage UTF-8 pour éviter les bugs mobile
         reader.readAsText(e.target.files[0], 'UTF-8');
     }
 </script>
